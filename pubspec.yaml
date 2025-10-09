@@ -10,11 +10,14 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0
+  carousel_slider: ^5.1.1
+  smooth_page_indicator: ^1.1.0
+  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

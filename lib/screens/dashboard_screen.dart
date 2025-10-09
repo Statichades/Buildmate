@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/product_model.dart'
-    as product_model; // Alias to avoid conflict
+import '../models/product_model.dart' as product_model;
 import 'categories_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
-import 'product_details_screen.dart'; // Import the product details screen
+import 'product_details_screen.dart';
+import 'search_screen.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -90,6 +92,14 @@ class _HomeContentState extends State<HomeContent> {
   List<product_model.Product> products = [];
   bool isLoading = true;
   String error = '';
+  int activeIndex = 0;
+  final carouselImages = [
+    "assets/images/placeholder.png",
+    "assets/images/placeholder.png",
+    "assets/images/placeholder.png",
+  ];
+
+  final CarouselController _carouselController = CarouselController();
 
   @override
   void initState() {
@@ -100,8 +110,9 @@ class _HomeContentState extends State<HomeContent> {
   Future<void> _fetchProducts() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/api/get_products.php'),
+        Uri.parse('http://localhost/api/get_products.php'),
       );
+
       if (response.statusCode == 200) {
         List<dynamic> productJson = json.decode(response.body);
         setState(() {
@@ -139,8 +150,17 @@ class _HomeContentState extends State<HomeContent> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey[300]!),
             ),
-            child: const TextField(
-              decoration: InputDecoration(
+            child: TextField(
+              readOnly: true,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SearchScreen(allProducts: products),
+                  ),
+                );
+              },
+              decoration: const InputDecoration(
                 hintText: "Search products",
                 border: InputBorder.none,
                 icon: Icon(Icons.search, color: Colors.grey),
@@ -153,14 +173,44 @@ class _HomeContentState extends State<HomeContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: size.height * 0.22,
-                    decoration: BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.circular(16),
-                      image: const DecorationImage(
-                        image: AssetImage("assets/images/placeholder.png"),
-                        fit: BoxFit.cover,
+                  CarouselSlider.builder(
+                    carouselController: CarouselSliderController(),
+                    options: CarouselOptions(
+                      height: size.height * 0.22,
+                      autoPlay: true,
+                      enlargeCenterPage: true,
+                      aspectRatio: 16 / 9,
+                      viewportFraction: 1,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          activeIndex = index;
+                        });
+                      },
+                    ),
+                    itemCount: carouselImages.length,
+                    itemBuilder: (context, index, realIndex) {
+                      final image = carouselImages[index];
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey,
+                          borderRadius: BorderRadius.circular(16),
+                          image: DecorationImage(
+                            image: AssetImage(image),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: AnimatedSmoothIndicator(
+                      activeIndex: activeIndex,
+                      count: carouselImages.length,
+                      effect: const ExpandingDotsEffect(
+                        dotHeight: 8,
+                        dotWidth: 8,
+                        activeDotColor: Color(0xFF615EFC),
                       ),
                     ),
                   ),
