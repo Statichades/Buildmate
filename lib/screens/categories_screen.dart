@@ -2,6 +2,7 @@ import 'package:buildmate/widgets/categories/grid_view.dart';
 import 'package:buildmate/widgets/categories/list_view.dart';
 import 'package:flutter/material.dart';
 import 'products_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -12,6 +13,24 @@ class CategoriesScreen extends StatefulWidget {
 
 class CategoriesScreenState extends State<CategoriesScreen> {
   bool isGrid = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGridPreference();
+  }
+
+  Future<void> _loadGridPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isGrid = prefs.getBool('isGridPreference') ?? true;
+    });
+  }
+
+  Future<void> _saveGridPreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isGridPreference', value);
+  }
 
   final categories = [
     {"title": "Masonry", "icon": Icons.construction},
@@ -50,6 +69,7 @@ class CategoriesScreenState extends State<CategoriesScreen> {
                     setState(() {
                       isGrid = !isGrid;
                     });
+                    _saveGridPreference(isGrid);
                   },
                 ),
               ],
