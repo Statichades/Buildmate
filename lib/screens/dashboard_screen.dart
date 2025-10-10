@@ -9,7 +9,7 @@ import 'profile_screen.dart';
 import 'product_details_screen.dart';
 import 'search_screen.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:shimmer/shimmer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -99,8 +99,6 @@ class _HomeContentState extends State<HomeContent> {
     "assets/images/placeholder.png",
   ];
 
-  final CarouselController _carouselController = CarouselController();
-
   @override
   void initState() {
     super.initState();
@@ -174,18 +172,12 @@ class _HomeContentState extends State<HomeContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CarouselSlider.builder(
-                    carouselController: CarouselSliderController(),
                     options: CarouselOptions(
                       height: size.height * 0.22,
                       autoPlay: true,
                       enlargeCenterPage: true,
                       aspectRatio: 16 / 9,
                       viewportFraction: 1,
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          activeIndex = index;
-                        });
-                      },
                     ),
                     itemCount: carouselImages.length,
                     itemBuilder: (context, index, realIndex) {
@@ -201,18 +193,6 @@ class _HomeContentState extends State<HomeContent> {
                         ),
                       );
                     },
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: AnimatedSmoothIndicator(
-                      activeIndex: activeIndex,
-                      count: carouselImages.length,
-                      effect: const ExpandingDotsEffect(
-                        dotHeight: 8,
-                        dotWidth: 8,
-                        activeDotColor: Color(0xFF615EFC),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -238,7 +218,30 @@ class _HomeContentState extends State<HomeContent> {
                     ],
                   ),
                   isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 0.7,
+                              ),
+                          itemCount: 6, // Number of shimmer items
+                          itemBuilder: (context, index) {
+                            return Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          },
+                        )
                       : error.isNotEmpty
                       ? Center(child: Text('Error: $error'))
                       : GridView.builder(
