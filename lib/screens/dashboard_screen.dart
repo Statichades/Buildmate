@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:async'; // added for TimeoutException
+import 'dart:async';
 import '../models/product_model.dart' as product_model;
 import 'categories_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
 import 'product_details_screen.dart';
 import 'search_screen.dart';
+import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -211,7 +213,55 @@ class _HomeContentState extends State<HomeContent> {
             name: product.name,
             price: product.price.toString(),
             stock: product.stock,
-            onPressed: () {
+            onPressed: () async {
+              // Check login state
+              final prefs = await SharedPreferences.getInstance();
+              final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+              if (!isLoggedIn) {
+                // show a modern dialog prompting login
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    title: Row(
+                      children: const [
+                        Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
+                        SizedBox(width: 8),
+                        Text('Login required'),
+                      ],
+                    ),
+                    content: const Text(
+                      'You need to login to view product details or buy products.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(color: Color(0xFF615EFC)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
               Navigator.push(
                 context,
                 MaterialPageRoute(

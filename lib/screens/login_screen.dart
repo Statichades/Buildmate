@@ -4,6 +4,7 @@ import 'package:buildmate/screens/signup_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:buildmate/utils/toast_util.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,6 +44,21 @@ class _LoginScreenState extends State<LoginScreen> {
           .timeout(const Duration(seconds: 10));
 
       if (postResp.statusCode == 200) {
+        // persist login state if backend confirms success
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          // attempt to parse returned user info
+          final payload = jsonDecode(postResp.body);
+          final savedName = (payload is Map && payload['username'] != null)
+              ? payload['username'].toString()
+              : email;
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('username', savedName);
+          // optional profile image field
+          if (payload is Map && payload['profileImage'] != null) {
+            await prefs.setString('profileImage', payload['profileImage']);
+          }
+        } catch (_) {}
         showModernToast(message: 'Login successful');
         Navigator.pushReplacement(
           context,
@@ -67,6 +83,20 @@ class _LoginScreenState extends State<LoginScreen> {
           orElse: () => null,
         );
         if (match != null) {
+          // persist simple login info from matched user
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('isLoggedIn', true);
+            final name = (match['username'] ?? match['name'] ?? email)
+                .toString();
+            await prefs.setString('username', name);
+            if (match['profileImage'] != null) {
+              await prefs.setString(
+                'profileImage',
+                match['profileImage'].toString(),
+              );
+            }
+          } catch (_) {}
           showModernToast(message: 'Login successful');
           Navigator.pushReplacement(
             context,

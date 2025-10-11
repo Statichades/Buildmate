@@ -1,11 +1,49 @@
 import 'package:buildmate/screens/auth_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  final bool isLoggedIn = false; // ← Simulate logged-in state
-  final String? profileImagePath = null; // ← Simulate missing profile picture
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool isLoggedIn = false;
+  String? username;
+  String? profileImagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      username = prefs.getString('username');
+      profileImagePath = prefs.getString('profileImage');
+    });
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isLoggedIn');
+    await prefs.remove('username');
+    await prefs.remove('profileImage');
+    setState(() {
+      isLoggedIn = false;
+      username = null;
+      profileImagePath = null;
+    });
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +58,7 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 40,
                   backgroundImage: profileImagePath != null
-                      ? AssetImage(profileImagePath!)
+                      ? NetworkImage(profileImagePath!) as ImageProvider
                       : null,
                   backgroundColor: Colors.grey[200],
                   child: profileImagePath == null
@@ -33,28 +71,31 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 12),
 
             if (isLoggedIn)
-              const Text(
-                "Ringheart Tagalog",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                username ?? 'User',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
             const SizedBox(height: 20),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Expanded(
+              children: [
+                const Expanded(
                   child: _StatusCard(
                     icon: Icons.check_circle,
                     label: "Delivered",
                   ),
                 ),
-                SizedBox(width: 12),
-                Expanded(
+                const SizedBox(width: 12),
+                const Expanded(
                   child: _StatusCard(icon: Icons.sync, label: "Processing"),
                 ),
-                SizedBox(width: 12),
-                Expanded(
+                const SizedBox(width: 12),
+                const Expanded(
                   child: _StatusCard(icon: Icons.cancel, label: "Cancelled"),
                 ),
               ],
@@ -69,10 +110,14 @@ class ProfileScreen extends StatelessWidget {
               isLoggedIn == false ? "Login" : "Logout",
               isLogout: isLoggedIn == false ? true : false,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
-                );
+                if (!isLoggedIn) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AuthScreen()),
+                  );
+                } else {
+                  _logout();
+                }
               },
             ),
           ],

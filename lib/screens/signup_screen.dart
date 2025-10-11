@@ -1,4 +1,3 @@
-import 'package:buildmate/screens/dashboard_screen.dart';
 import 'package:buildmate/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/screens/login_screen.dart';
@@ -68,7 +67,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             Uri.parse("https://buildmate-db.onrender.com/users"),
             headers: {"Content-Type": "application/json"},
             body: jsonEncode({
-              "username": username,
+              "name": username,
               "email": email,
               "password": password,
             }),

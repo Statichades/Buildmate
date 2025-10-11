@@ -7,7 +7,7 @@ class Product {
 
   Product({required this.name, required this.price, this.imagePath});
 
-  static fromJson(json) {}
+  static void fromJson(json) {}
 }
 
 class CartItem {
