@@ -1,6 +1,9 @@
 import 'package:buildmate/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/screens/signup_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:buildmate/utils/toast_util.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,6 +13,83 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  Future<void> _login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      showModernToast(
+        message: 'Please enter email and password',
+        backgroundColor: Colors.redAccent,
+      );
+      return;
+    }
+
+    final client = http.Client();
+    try {
+      // First try POST /users/login if your backend supports it
+      final loginUrl = Uri.parse(
+        'https://buildmate-db.onrender.com/users/login',
+      );
+      final postResp = await client
+          .post(
+            loginUrl,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (postResp.statusCode == 200) {
+        showModernToast(message: 'Login successful');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+        return;
+      }
+
+      // Fallback: fetch all users and match (if backend doesn't provide /login)
+      final usersUrl = Uri.parse('https://buildmate-db.onrender.com/users');
+      final usersResp = await client
+          .get(usersUrl)
+          .timeout(const Duration(seconds: 10));
+
+      if (usersResp.statusCode == 200) {
+        final List<dynamic> users = jsonDecode(usersResp.body);
+        final match = users.firstWhere(
+          (u) =>
+              (u['email'] ?? '').toString().toLowerCase() ==
+                  email.toLowerCase() &&
+              (u['password'] ?? '').toString() == password,
+          orElse: () => null,
+        );
+        if (match != null) {
+          showModernToast(message: 'Login successful');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          );
+          return;
+        }
+      }
+
+      showModernToast(
+        message: 'Invalid credentials',
+        backgroundColor: Colors.redAccent,
+      );
+    } catch (e) {
+      showModernToast(
+        message: 'Login error: $e',
+        backgroundColor: Colors.redAccent,
+      );
+    } finally {
+      client.close();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -37,6 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     SizedBox(height: size.height * 0.05),
                     TextFormField(
+                      controller: emailController,
                       decoration: InputDecoration(
                         hintText: "Email",
                         prefixIcon: const Icon(Icons.email_outlined),
@@ -54,6 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
+                      controller: passwordController,
                       obscureText: true,
                       decoration: InputDecoration(
                         hintText: "Password",
@@ -79,14 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DashboardScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: _login,
                       child: const Text(
                         "Login",
                         style: TextStyle(

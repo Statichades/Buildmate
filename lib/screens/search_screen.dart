@@ -96,7 +96,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 return productCard(
                   imageUrl: product.imageUrl,
                   name: product.name,
-                  price: product.price,
+                  price: product.price.toString(),
                   stock: product.stock,
                   onPressed: () {
                     Navigator.push(

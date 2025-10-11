@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 Widget productCard({
   required VoidCallback onPressed,
@@ -25,10 +26,36 @@ Widget productCard({
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
               ),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
+              child: Skeleton.replace(
                 width: double.infinity,
+                height: double.infinity,
+                // when skeletonizer is enabled, `replacement` will be shown and skeletonized
+                replacement: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                // the real image widget is provided as the child
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  // fallback when image fails to load (no internet, etc.)
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[200],
+                      alignment: Alignment.center,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),

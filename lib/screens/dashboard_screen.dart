@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async'; // added for TimeoutException
 import '../models/product_model.dart' as product_model;
 import 'categories_screen.dart';
 import 'cart_screen.dart';
@@ -9,7 +10,7 @@ import 'profile_screen.dart';
 import 'product_details_screen.dart';
 import 'search_screen.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -94,9 +95,9 @@ class _HomeContentState extends State<HomeContent> {
   String error = '';
   int activeIndex = 0;
   final carouselImages = [
-    "assets/images/placeholder.png",
-    "assets/images/placeholder.png",
-    "assets/images/placeholder.png",
+    "assets/images/logo.png",
+    "assets/images/logo.png",
+    "assets/images/logo.png",
   ];
 
   @override
@@ -106,11 +107,13 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Future<void> _fetchProducts() async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://localhost/api/get_products.php'),
-      );
+    final url = Uri.parse('https://buildmate-db.onrender.com/products');
+    final client = http.Client();
 
+    try {
+      final response = await client
+          .get(url)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         List<dynamic> productJson = json.decode(response.body);
         setState(() {
@@ -125,17 +128,101 @@ class _HomeContentState extends State<HomeContent> {
           isLoading = false;
         });
       }
+    } on TimeoutException {
+      setState(() {
+        error = 'Request timed out. Please check your internet connection.';
+        isLoading = false;
+      });
     } catch (e) {
       setState(() {
         error = 'Error fetching products: $e';
         isLoading = false;
       });
+    } finally {
+      client.close();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+
+    Widget productsSection;
+    if (isLoading && products.isEmpty) {
+      final fakeProducts = List.generate(
+        6,
+        (_) => product_model.Product(
+          id: 0,
+          name: 'Product',
+          price: 0.0,
+          stock: 0,
+          imageUrl: '',
+        ),
+      );
+
+      productsSection = Skeletonizer(
+        enabled: true,
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7,
+          ),
+          itemCount: fakeProducts.length,
+          itemBuilder: (context, index) {
+            final product = fakeProducts[index];
+            return productCard(
+              imageUrl: product.imageUrl,
+              name: product.name,
+              price: product.price.toString(),
+              stock: product.stock,
+              onPressed: () {},
+            );
+          },
+        ),
+      );
+    } else if (error.isNotEmpty && products.isEmpty) {
+      // error and nothing to show -> show error message
+      productsSection = Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0),
+          child: Text('Error: $error'),
+        ),
+      );
+    } else {
+      // either we have products (cached/previous) or loading finished successfully
+      productsSection = GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.7,
+        ),
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          final product = products[index];
+          return productCard(
+            imageUrl: product.imageUrl,
+            name: product.name,
+            price: product.price.toString(),
+            stock: product.stock,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProductDetailsScreen(product: product),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
 
     return SafeArea(
       child: Column(
@@ -171,28 +258,44 @@ class _HomeContentState extends State<HomeContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CarouselSlider.builder(
-                    options: CarouselOptions(
-                      height: size.height * 0.22,
-                      autoPlay: true,
-                      enlargeCenterPage: true,
-                      aspectRatio: 16 / 9,
-                      viewportFraction: 1,
+                  Skeletonizer(
+                    enabled:
+                        (isLoading || error.isNotEmpty) && products.isEmpty,
+                    effect: const ShimmerEffect(
+                      baseColor: Color(0xFFE0E0E0),
+                      highlightColor: Color(0xFFF5F5F5),
+                      duration: Duration(milliseconds: 900),
                     ),
-                    itemCount: carouselImages.length,
-                    itemBuilder: (context, index, realIndex) {
-                      final image = carouselImages[index];
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey,
+                    child: CarouselSlider.builder(
+                      options: CarouselOptions(
+                        height: size.height * 0.22,
+                        autoPlay: true,
+                        enlargeCenterPage: true,
+                        aspectRatio: 16 / 9,
+                        viewportFraction: 1,
+                      ),
+                      itemCount: carouselImages.length,
+                      itemBuilder: (context, index, realIndex) {
+                        final image = carouselImages[index];
+                        return ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          image: DecorationImage(
-                            image: AssetImage(image),
-                            fit: BoxFit.cover,
+                          child: Skeleton.replace(
+                            width: double.infinity,
+                            height: double.infinity,
+                            replacement: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                              ),
+                            ),
+                            child: Image.asset(
+                              image,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -217,63 +320,16 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ],
                   ),
-                  isLoading
-                      ? GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.7,
-                              ),
-                          itemCount: 6, // Number of shimmer items
-                          itemBuilder: (context, index) {
-                            return Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : error.isNotEmpty
-                      ? Center(child: Text('Error: $error'))
-                      : GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.7,
-                              ),
-                          itemCount: products.length,
-                          itemBuilder: (context, index) {
-                            final product = products[index];
-                            return productCard(
-                              imageUrl: product.imageUrl,
-                              name: product.name,
-                              price: product.price,
-                              stock: product.stock,
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ProductDetailsScreen(product: product),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                  Skeletonizer(
+                    enabled:
+                        (isLoading || error.isNotEmpty) && products.isEmpty,
+                    effect: const ShimmerEffect(
+                      baseColor: Color(0xFFE0E0E0),
+                      highlightColor: Color(0xFFF5F5F5),
+                      duration: Duration(milliseconds: 900),
+                    ),
+                    child: productsSection,
+                  ),
                 ],
               ),
             ),

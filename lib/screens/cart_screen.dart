@@ -6,6 +6,8 @@ class Product {
   final String? imagePath; // optional
 
   Product({required this.name, required this.price, this.imagePath});
+
+  static fromJson(json) {}
 }
 
 class CartItem {

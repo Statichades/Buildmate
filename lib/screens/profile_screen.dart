@@ -14,7 +14,6 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Avatar with optional plus icon
             Stack(
               alignment: Alignment.center,
               children: [
@@ -33,7 +32,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Only show name if logged in
             if (isLoggedIn)
               const Text(
                 "Ringheart Tagalog",
@@ -42,7 +40,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Status cards
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
@@ -65,7 +62,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Options
             _buildOption(Icons.edit, "Edit Profile"),
             _buildOption(Icons.location_on, "Shipping Address"),
             _buildOption(
