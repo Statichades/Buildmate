@@ -23,7 +23,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _signUp() async {
     final username =
-        "${firstNameController.text.trim()} ${lastNameController.text.trim()}";
+        "${firstNameController.text.trim()[0].toUpperCase()}${firstNameController.text.trim().substring(1).toLowerCase()} "
+        "${lastNameController.text.trim()[0].toUpperCase()}${lastNameController.text.trim().substring(1).toLowerCase()}";
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
