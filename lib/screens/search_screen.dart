@@ -56,23 +56,51 @@ class _SearchScreenState extends State<SearchScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF615EFC)),
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: "Search products...",
-            border: InputBorder.none,
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
-                    onPressed: () {
-                      _searchController.clear();
-                      _filterProducts('');
-                    },
-                  )
-                : null,
+        title: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF615EFC).withOpacity(0.05),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF615EFC).withOpacity(0.05),
+                spreadRadius: 0,
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          onChanged: _filterProducts,
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              hintText: "Search products...",
+              hintStyle: TextStyle(color: Colors.grey.shade600),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              prefixIcon: Icon(
+                Icons.search,
+                color: const Color(0xFF615EFC).withOpacity(0.7),
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(
+                        Icons.clear,
+                        color: Colors.grey.shade600,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        _filterProducts('');
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: _filterProducts,
+          ),
         ),
       ),
       body: _filteredProducts.isEmpty && _searchController.text.isNotEmpty

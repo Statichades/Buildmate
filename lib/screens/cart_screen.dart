@@ -98,17 +98,14 @@ class _CartScreenState extends State<CartScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: item.isSelected
-                            ? const Color(0xFF615EFC)
-                            : Colors.grey[300]!,
-                        width: 1.5,
-                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
+                          color: item.isSelected
+                              ? const Color(0xFF615EFC).withOpacity(0.15)
+                              : Colors.grey.withOpacity(0.1),
+                          spreadRadius: item.isSelected ? 2 : 0,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
