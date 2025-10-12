@@ -24,7 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-      username = prefs.getString('username');
+      username = prefs.getString('name');
       profileImagePath = prefs.getString('profileImage');
     });
   }
@@ -32,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('isLoggedIn');
-    await prefs.remove('username');
+    await prefs.remove('name');
     await prefs.remove('profileImage');
     setState(() {
       isLoggedIn = false;
@@ -71,42 +71,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 30, 20, 40),
               child: Column(
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF615EFC),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF615EFC).withOpacity(0.2),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
+                  SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF615EFC),
+                              width: 2,
                             ),
-                          ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF615EFC).withOpacity(0.2),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 45,
+                            backgroundImage: profileImagePath != null
+                                ? NetworkImage(profileImagePath!)
+                                      as ImageProvider
+                                : null,
+                            backgroundColor: Colors.white,
+                            child: profileImagePath == null
+                                ? const Icon(
+                                    Icons.person_outline,
+                                    size: 40,
+                                    color: Color(0xFF615EFC),
+                                  )
+                                : null,
+                          ),
                         ),
-                        child: CircleAvatar(
-                          radius: 45,
-                          backgroundImage: profileImagePath != null
-                              ? NetworkImage(profileImagePath!) as ImageProvider
-                              : null,
-                          backgroundColor: Colors.white,
-                          child: profileImagePath == null
-                              ? const Icon(
-                                  Icons.person_outline,
-                                  size: 40,
-                                  color: Color(0xFF615EFC),
-                                )
-                              : null,
+                        Positioned(
+                          bottom: 0,
+                          right: -5,
+                          child: GestureDetector(
+                            onTap: () {},
+                            child: const Icon(
+                              Icons.add_circle,
+                              color: Color(0xFF615EFC),
+                              size: 28,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   if (isLoggedIn)

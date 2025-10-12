@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'package:buildmate/utils/toast_util.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_model.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -12,6 +16,44 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int quantity = 1;
+
+  Future<void> addToCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id');
+
+    if (userId == null) {
+      showModernToast(message: 'Please log in to add items to your cart.');
+      return;
+    }
+
+    final url = Uri.parse('https://buildmate-db.onrender.com/cart');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': userId,
+          'product_id': widget.product.id,
+          'quantity': quantity,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        showModernToast(message: 'Item added to cart!');
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } else {
+        final responseBody = json.decode(response.body);
+        showModernToast(
+          message: 'Failed to add to cart: ${responseBody['error']}',
+        );
+      }
+    } catch (e) {
+      showModernToast(message: 'An error occurred: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +189,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 ),
                               ),
                               _quantityButton(Icons.add, () {
-                                setState(() => quantity++);
+                                if (quantity < widget.product.stock) {
+                                  setState(() => quantity++);
+                                } else {
+                                  showModernToast(
+                                    message:
+                                        'Cannot add more than available stock',
+                                  );
+                                }
                               }),
                             ],
                           ),
@@ -194,7 +243,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed: () {},
+                              onPressed: addToCart,
                               child: const Text(
                                 "Add to Cart",
                                 style: TextStyle(

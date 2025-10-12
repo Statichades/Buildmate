@@ -23,99 +23,45 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      showModernToast(
-        message: 'Please enter email and password',
-        backgroundColor: Colors.redAccent,
-      );
+      showModernToast(message: 'Please enter email and password');
       return;
     }
 
     setState(() => isLoggingIn = true);
-    final client = http.Client();
+
     try {
-      final loginUrl = Uri.parse(
-        'https://buildmate-db.onrender.com/users/login',
-      );
-      final postResp = await client
-          .post(
-            loginUrl,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'email': email, 'password': password}),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await http.post(
+        Uri.parse('https://buildmate-db.onrender.com/users/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      ).timeout(const Duration(seconds: 15));
 
-      if (postResp.statusCode == 200) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final payload = jsonDecode(postResp.body);
-          final savedName = (payload is Map && payload['username'] != null)
-              ? payload['username'].toString()
-              : email;
-          await prefs.setBool('isLoggedIn', true);
-          await prefs.setString('username', savedName);
-          if (payload is Map && payload['profileImage'] != null) {
-            await prefs.setString('profileImage', payload['profileImage']);
-          }
-        } catch (_) {}
+      final responseBody = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('user_id', responseBody['id']);
+        await prefs.setString('name', responseBody['name']);
+        await prefs.setString('email', responseBody['email']);
+        await prefs.setBool('isLoggedIn', true);
+
         showModernToast(message: 'Login successful');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-        return;
-      }
-
-      final usersUrl = Uri.parse(
-        'https://buildmate-db.onrender.com/users/login',
-      );
-      final usersResp = await client
-          .get(usersUrl)
-          .timeout(const Duration(seconds: 10));
-
-      if (usersResp.statusCode == 200) {
-        final List<dynamic> users = jsonDecode(usersResp.body);
-        final match = users.firstWhere(
-          (u) =>
-              (u['email'] ?? '').toString().toLowerCase() ==
-                  email.toLowerCase() &&
-              (u['password'] ?? '').toString() == password,
-          orElse: () => null,
-        );
-        if (match != null) {
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('isLoggedIn', true);
-            final name = (match['username'] ?? match['name'] ?? email)
-                .toString();
-            await prefs.setString('username', name);
-            if (match['profileImage'] != null) {
-              await prefs.setString(
-                'profileImage',
-                match['profileImage'].toString(),
-              );
-            }
-          } catch (_) {}
-          showModernToast(message: 'Login successful');
+        if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const DashboardScreen()),
           );
-          return;
         }
+      } else {
+        final errorMessage = responseBody['error'] ?? 'Invalid credentials';
+        showModernToast(message: errorMessage);
       }
-
-      showModernToast(
-        message: 'Invalid credentials',
-        backgroundColor: Colors.redAccent,
-      );
     } catch (e) {
-      showModernToast(
-        message: 'Login error: $e',
-        backgroundColor: Colors.redAccent,
-      );
+      showModernToast(message: 'An error occurred: $e');
     } finally {
-      client.close();
-      setState(() => isLoggingIn = false);
+      if (mounted) {
+        setState(() => isLoggingIn = false);
+      }
     }
   }
 
