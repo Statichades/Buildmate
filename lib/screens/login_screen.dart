@@ -16,6 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool isLoggingIn = false;
 
   Future<void> _login() async {
     final email = emailController.text.trim();
@@ -29,9 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    setState(() => isLoggingIn = true);
     final client = http.Client();
     try {
-      // First try POST /users/login if your backend supports it
       final loginUrl = Uri.parse(
         'https://buildmate-db.onrender.com/users/login',
       );
@@ -44,17 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
           .timeout(const Duration(seconds: 10));
 
       if (postResp.statusCode == 200) {
-        // persist login state if backend confirms success
         try {
           final prefs = await SharedPreferences.getInstance();
-          // attempt to parse returned user info
           final payload = jsonDecode(postResp.body);
           final savedName = (payload is Map && payload['username'] != null)
               ? payload['username'].toString()
               : email;
           await prefs.setBool('isLoggedIn', true);
           await prefs.setString('username', savedName);
-          // optional profile image field
           if (payload is Map && payload['profileImage'] != null) {
             await prefs.setString('profileImage', payload['profileImage']);
           }
@@ -67,8 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Fallback: fetch all users and match (if backend doesn't provide /login)
-      final usersUrl = Uri.parse('https://buildmate-db.onrender.com/users');
+      final usersUrl = Uri.parse(
+        'https://buildmate-db.onrender.com/users/login',
+      );
       final usersResp = await client
           .get(usersUrl)
           .timeout(const Duration(seconds: 10));
@@ -83,7 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
           orElse: () => null,
         );
         if (match != null) {
-          // persist simple login info from matched user
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setBool('isLoggedIn', true);
@@ -117,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       client.close();
+      setState(() => isLoggingIn = false);
     }
   }
 
@@ -191,13 +190,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: _login,
-                      child: const Text(
-                        "Login",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      onPressed: isLoggingIn ? null : _login,
+                      child: SizedBox(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Opacity(
+                              opacity: isLoggingIn ? 0.0 : 1.0,
+                              child: const Text(
+                                "Login",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            if (isLoggingIn)
+                              const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
