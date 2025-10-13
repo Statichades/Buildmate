@@ -142,15 +142,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 12),
 
-            if (isLoggedIn)
-              Text(
-                username ?? 'User',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
+            // if (isLoggedIn)
+            //   Text(
+            //     username ?? 'User',
+            //     style: const TextStyle(
+            //       fontSize: 18,
+            //       fontWeight: FontWeight.bold,
+            //     ),
+            //   ),
             const SizedBox(height: 20),
 
             Padding(

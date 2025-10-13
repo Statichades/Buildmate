@@ -51,37 +51,36 @@ class CategoriesScreenState extends State<CategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Categories",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: Icon(isGrid ? Icons.view_list : Icons.grid_view),
-                  onPressed: () {
-                    setState(() {
-                      isGrid = !isGrid;
-                    });
-                    _saveGridPreference(isGrid);
-                  },
-                ),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
           ),
-          Expanded(
-            child: isGrid
-                ? gridView(categories, _onCategoryTap)
-                : listView(categories, _onCategoryTap),
+        ),
+        title: const Text(
+          "Categories",
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: Icon(isGrid ? Icons.view_list : Icons.grid_view),
+            onPressed: () {
+              setState(() {
+                isGrid = !isGrid;
+              });
+              _saveGridPreference(isGrid);
+            },
           ),
         ],
       ),
+      body: isGrid
+          ? gridView(categories, _onCategoryTap)
+          : listView(categories, _onCategoryTap),
     );
   }
 }
