@@ -82,7 +82,7 @@ Widget productCard({
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  price,
+                  '₱$price',
                   style: const TextStyle(
                     color: Color(0xFF615EFC),
                     fontSize: 13,

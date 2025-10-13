@@ -282,9 +282,16 @@ class _HomeContentState extends State<HomeContent> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF615EFC).withOpacity(0.08),
+                  spreadRadius: 0,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: TextField(
               readOnly: true,
@@ -299,7 +306,7 @@ class _HomeContentState extends State<HomeContent> {
               decoration: const InputDecoration(
                 hintText: "Search products",
                 border: InputBorder.none,
-                icon: Icon(Icons.search, color: Colors.grey),
+                icon: Icon(Icons.search, color: Color(0xFF615EFC)),
               ),
             ),
           ),
@@ -317,35 +324,48 @@ class _HomeContentState extends State<HomeContent> {
                       highlightColor: Color(0xFFF5F5F5),
                       duration: Duration(milliseconds: 900),
                     ),
-                    child: CarouselSlider.builder(
-                      options: CarouselOptions(
-                        height: size.height * 0.22,
-                        autoPlay: true,
-                        enlargeCenterPage: true,
-                        aspectRatio: 16 / 9,
-                        viewportFraction: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF615EFC).withOpacity(0.08),
+                            spreadRadius: 0,
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      itemCount: carouselImages.length,
-                      itemBuilder: (context, index, realIndex) {
-                        final image = carouselImages[index];
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Skeleton.replace(
-                            width: double.infinity,
-                            height: double.infinity,
-                            replacement: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
+                      child: CarouselSlider.builder(
+                        options: CarouselOptions(
+                          height: size.height * 0.22,
+                          autoPlay: true,
+                          enlargeCenterPage: true,
+                          aspectRatio: 16 / 9,
+                          viewportFraction: 1,
+                        ),
+                        itemCount: carouselImages.length,
+                        itemBuilder: (context, index, realIndex) {
+                          final image = carouselImages[index];
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Skeleton.replace(
+                              width: double.infinity,
+                              height: double.infinity,
+                              replacement: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                ),
+                              ),
+                              child: Image.asset(
+                                image,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
                               ),
                             ),
-                            child: Image.asset(
-                              image,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
