@@ -110,7 +110,8 @@ class _CartScreenState extends State<CartScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/cart/$userId'),
+        Uri.parse('https://buildmate-db.onrender.com/api/cart/$userId'),
+        headers: {'Content-Type': 'application/json'},
       );
 
       if (response.statusCode == 200) {
@@ -120,11 +121,13 @@ class _CartScreenState extends State<CartScreen> {
           _isLoading = false;
         });
       } else {
+        debugPrint('Failed to fetch cart: ${response.statusCode}');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('Error fetching cart: $e');
       setState(() {
         _isLoading = false;
       });

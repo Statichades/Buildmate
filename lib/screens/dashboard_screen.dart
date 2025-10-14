@@ -110,7 +110,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Future<void> _fetchProducts() async {
-    final url = Uri.parse('https://buildmate-db.onrender.com/products');
+    final url = Uri.parse('https://buildmate-db.onrender.com/api/products');
     final client = http.Client();
 
     try {

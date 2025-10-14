@@ -3,6 +3,8 @@ import 'package:buildmate/widgets/categories/list_view.dart';
 import 'package:flutter/material.dart';
 import 'products_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -13,11 +15,14 @@ class CategoriesScreen extends StatefulWidget {
 
 class CategoriesScreenState extends State<CategoriesScreen> {
   bool isGrid = true;
+  List<Map<String, dynamic>> categories = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadGridPreference();
+    _fetchCategories();
   }
 
   Future<void> _loadGridPreference() async {
@@ -32,15 +37,56 @@ class CategoriesScreenState extends State<CategoriesScreen> {
     await prefs.setBool('isGridPreference', value);
   }
 
-  final categories = [
-    {"title": "Masonry", "icon": Icons.construction},
-    {"title": "Cabinets", "icon": Icons.kitchen},
-    {"title": "Door & Jambs", "icon": Icons.door_front_door},
-    {"title": "Steel Bars", "icon": Icons.precision_manufacturing},
-    {"title": "Cement", "icon": Icons.grain},
-    {"title": "Paints", "icon": Icons.format_paint},
-    {"title": "Electrical", "icon": Icons.electrical_services},
-  ];
+  Future<void> _fetchCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://buildmate-db.onrender.com/api/categories'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          // Map API response into your local format
+          categories = data.map((cat) {
+            return {
+              "id": cat['id'],
+              "title": cat['name'],
+              "icon": _getIconForCategory(cat['name']),
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      } else {
+        debugPrint('Failed to fetch categories: ${response.statusCode}');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  IconData _getIconForCategory(String name) {
+    switch (name.toLowerCase()) {
+      case 'masonry':
+        return Icons.construction;
+      case 'cabinets':
+        return Icons.kitchen;
+      case 'door & jambs':
+        return Icons.door_front_door;
+      case 'steel bars':
+        return Icons.precision_manufacturing;
+      case 'cement':
+        return Icons.grain;
+      case 'paints':
+        return Icons.format_paint;
+      case 'electrical':
+        return Icons.electrical_services;
+      default:
+        return Icons.category;
+    }
+  }
 
   void _onCategoryTap(String title) {
     Navigator.push(
@@ -55,9 +101,7 @@ class CategoriesScreenState extends State<CategoriesScreen> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         title: const Text(
           "Categories",
@@ -78,7 +122,9 @@ class CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
-      body: isGrid
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : isGrid
           ? gridView(categories, _onCategoryTap)
           : listView(categories, _onCategoryTap),
     );

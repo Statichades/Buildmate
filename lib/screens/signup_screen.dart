@@ -62,10 +62,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final client = http.Client();
     setState(() => isSigningUp = true);
+
     try {
       final response = await client
           .post(
-            Uri.parse("https://buildmate-db.onrender.com/users"),
+            Uri.parse("https://buildmate-db.onrender.com/api/users"),
             headers: {"Content-Type": "application/json"},
             body: jsonEncode({
               "name": username,
@@ -77,11 +78,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode == 201) {
         showModernToast(
           message: data['message'] ?? "Account created successfully",
         );
-        // clear inputs
         firstNameController.clear();
         lastNameController.clear();
         emailController.clear();

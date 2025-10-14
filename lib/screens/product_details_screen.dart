@@ -21,12 +21,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
 
-    if (userId == null) {
-      showModernToast(message: 'Please log in to add items to your cart.');
-      return;
-    }
-
-    final url = Uri.parse('https://buildmate-db.onrender.com/cart');
+    final url = Uri.parse('https://buildmate-db.onrender.com/api/cart');
 
     try {
       final response = await http.post(
@@ -39,7 +34,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         showModernToast(message: 'Item added to cart!');
         if (mounted) {
           Navigator.pop(context);

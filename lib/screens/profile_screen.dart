@@ -34,6 +34,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.remove('isLoggedIn');
     await prefs.remove('name');
     await prefs.remove('profileImage');
+    await prefs.remove('user_id');
+
     setState(() {
       isLoggedIn = false;
       username = null;

@@ -30,11 +30,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoggingIn = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('https://buildmate-db.onrender.com/users/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('https://buildmate-db.onrender.com/api/users/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 15));
 
       final responseBody = json.decode(response.body);
 
