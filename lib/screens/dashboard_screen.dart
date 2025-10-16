@@ -41,7 +41,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF615EFC).withOpacity(0.05),
+      backgroundColor: Colors.grey[100],
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
