@@ -60,9 +60,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (response.statusCode == 200) {
         await prefs.setString('name', _usernameController.text);
         await prefs.setString('email', _emailController.text);
-        Navigator.pop(context, true); // Go back and indicate success
+        Navigator.pop(context, true);
       } else {
-        // Handle error
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update profile.')),
         );
