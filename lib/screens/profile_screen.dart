@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:buildmate/screens/auth_screen.dart';
+import 'package:buildmate/screens/edit_profile_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -45,6 +51,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       MaterialPageRoute(builder: (_) => const AuthScreen()),
     );
+  }
+
+  Future<void> _showImageSourceDialog() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library,
+                color: Color(0xFF615EFC),
+              ),
+              title: const Text('Upload from Gallery'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImageFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF615EFC)),
+              title: const Text('Take a Picture'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImageFromCamera();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile != null) {
+      _uploadImage(File(pickedFile.path));
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+    );
+    if (pickedFile != null) {
+      _uploadImage(File(pickedFile.path));
+    }
+  }
+
+  Future<void> _uploadImage(File image) async {
+    const apiKey = '4e101c88314158dc6123292f2271d307';
+    final url = Uri.parse('https://api.imgbb.com/1/upload?key=$apiKey');
+
+    final request = http.MultipartRequest('POST', url);
+    request.files.add(await http.MultipartFile.fromPath('image', image.path));
+
+    try {
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final decodedData = json.decode(responseData);
+        final imageUrl = decodedData['data']['url'];
+        final deleteUrl = decodedData['data']['delete_url'];
+
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getInt('user_id');
+        await prefs.setString('profileImage', imageUrl);
+
+        final dbUrl = Uri.parse(
+          'https://buildmate-db.onrender.com/api/users/$userId',
+        );
+        final dbResponse = await http.patch(
+          dbUrl,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'profile_url': imageUrl, 'delete_url': deleteUrl}),
+        );
+
+        if (dbResponse.statusCode == 200) {
+          setState(() {
+            profileImagePath = imageUrl;
+          });
+        } else {
+          // Handle DB update error
+        }
+      } else {
+        // Handle ImgBB upload error
+      }
+    } catch (e) {
+      // Handle error
+    }
   }
 
   @override
@@ -117,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           bottom: 0,
                           right: -5,
                           child: GestureDetector(
-                            onTap: () {},
+                            onTap: _showImageSourceDialog,
                             child: const Icon(
                               Icons.add_circle,
                               color: Color(0xFF615EFC),
@@ -179,7 +281,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 20),
 
-            _buildOption(Icons.edit, "Edit Profile"),
+            _buildOption(
+              Icons.edit,
+              "Edit Profile",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EditProfileScreen(),
+                  ),
+                ).then((_) => _loadProfile());
+              },
+            ),
             _buildOption(Icons.location_on, "Shipping Address"),
             _buildOption(
               Icons.logout,
@@ -276,6 +389,8 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 120,
+      width: 120,
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -290,6 +405,7 @@ class _StatusCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: const Color(0xFF615EFC), size: 28),

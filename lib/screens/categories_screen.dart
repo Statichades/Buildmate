@@ -1,6 +1,7 @@
 import 'package:buildmate/widgets/categories/grid_view.dart';
 import 'package:buildmate/widgets/categories/list_view.dart';
 import 'package:flutter/material.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'products_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -98,7 +99,7 @@ class CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFF615EFC).withOpacity(0.05),
       appBar: AppBar(
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -122,11 +123,36 @@ class CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : isGrid
-          ? gridView(categories, _onCategoryTap)
-          : listView(categories, _onCategoryTap),
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: isGrid
+            ? gridView(
+                _isLoading
+                    ? List.generate(
+                        6,
+                        (index) => {
+                          "id": index,
+                          "title": "Loading...",
+                          "icon": Icons.category,
+                        },
+                      )
+                    : categories,
+                _onCategoryTap,
+              )
+            : listView(
+                _isLoading
+                    ? List.generate(
+                        6,
+                        (index) => {
+                          "id": index,
+                          "title": "Loading...",
+                          "icon": Icons.category,
+                        },
+                      )
+                    : categories,
+                _onCategoryTap,
+              ),
+      ),
     );
   }
 }

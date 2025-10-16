@@ -163,7 +163,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFF615EFC).withOpacity(0.05),
       appBar: AppBar(
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -174,6 +174,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        shadowColor: const Color(0xFF615EFC).withOpacity(0.2),
         foregroundColor: Colors.black,
         actions: [
           if (hasSelected)

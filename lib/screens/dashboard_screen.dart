@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:http/http.dart' as http;
@@ -40,6 +41,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF615EFC).withOpacity(0.05),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -209,65 +211,73 @@ class _HomeContentState extends State<HomeContent> {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          return productCard(
-            imageUrl: product.imageUrl,
-            name: product.name,
-            price: product.price.toString(),
-            stock: product.stock,
-            onPressed: () async {
-              // Check login state
-              final prefs = await SharedPreferences.getInstance();
-              final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-              if (!isLoggedIn) {
-                // show a modern dialog prompting login
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    title: Row(
-                      children: const [
-                        Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
-                        SizedBox(width: 8),
-                        Text('Login required'),
-                      ],
-                    ),
-                    content: const Text(
-                      'You need to login to view product details or buy products.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(color: Color(0xFF615EFC)),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-                return;
-              }
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailsScreen(product: product),
-                ),
+          return OpenContainer(
+            transitionType:
+                ContainerTransitionType.fadeThrough, // or .fade, .sharedAxis
+            transitionDuration: const Duration(milliseconds: 500),
+            openBuilder: (context, _) => ProductDetailsScreen(product: product),
+            closedElevation: 0,
+            closedColor: Colors.transparent,
+            openColor: Colors.white,
+            closedShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            closedBuilder: (context, openContainer) {
+              return productCard(
+                imageUrl: product.imageUrl,
+                name: product.name,
+                price: product.price.toString(),
+                stock: product.stock,
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+                  if (!isLoggedIn) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        title: Row(
+                          children: const [
+                            Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
+                            SizedBox(width: 8),
+                            Text('Login required'),
+                          ],
+                        ),
+                        content: const Text(
+                          'You need to login to view product details or buy products.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(color: Color(0xFF615EFC)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    openContainer(); // trigger the container transform
+                  }
+                },
               );
             },
           );
@@ -286,10 +296,10 @@ class _HomeContentState extends State<HomeContent> {
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF615EFC).withOpacity(0.08),
-                  spreadRadius: 0,
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),

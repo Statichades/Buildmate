@@ -16,10 +16,10 @@ Widget listView(List<Map<String, dynamic>> categories, Function(String) onTap) {
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF615EFC).withOpacity(0.08),
-                spreadRadius: 0,
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
                 blurRadius: 10,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 3),
               ),
             ],
           ),
