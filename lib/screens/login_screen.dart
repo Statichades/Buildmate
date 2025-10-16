@@ -22,13 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
+    // kung walay gi input maam mo gawas ni
     if (email.isEmpty || password.isEmpty) {
       showModernToast(message: 'Please enter email and password');
       return;
     }
 
     setState(() => isLoggingIn = true);
-
+    // check if the users and password is correct and is in the database
+    // basta mao nana maam
     try {
       final response = await http
           .post(
@@ -49,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         showModernToast(message: 'Login successful');
         if (mounted) {
+          // Login na
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const DashboardScreen()),
@@ -67,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // design ni namo maam
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;

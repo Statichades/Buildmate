@@ -28,6 +28,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
+    //check if kung ang password ug confirm password kay parehas ba
     if (password != confirmPasswordController.text.trim()) {
       showModernToast(
         message: "Passwords do not match",
@@ -63,6 +64,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final client = http.Client();
     setState(() => isSigningUp = true);
 
+    //then e add ang user adto sa database
     try {
       final response = await client
           .post(
