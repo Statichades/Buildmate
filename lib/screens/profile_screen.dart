@@ -19,6 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoggedIn = false;
   String? username;
   String? profileImagePath;
+  String? tempProfileImagePath;
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
       username = prefs.getString('name');
       profileImagePath = prefs.getString('profileImage');
+      tempProfileImagePath = prefs.getString('tempProfileImagePath');
     });
   }
 
@@ -40,12 +42,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.remove('isLoggedIn');
     await prefs.remove('name');
     await prefs.remove('profileImage');
+    await prefs.remove('tempProfileImagePath');
     await prefs.remove('user_id');
 
     setState(() {
       isLoggedIn = false;
       username = null;
       profileImagePath = null;
+      tempProfileImagePath = null;
     });
     Navigator.pushReplacement(
       context,
@@ -93,6 +97,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       source: ImageSource.gallery,
     );
     if (pickedFile != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tempProfileImagePath', pickedFile.path);
+
+      setState(() {
+        tempProfileImagePath = pickedFile.path;
+      });
+
       _uploadImage(File(pickedFile.path));
     }
   }
@@ -102,6 +113,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       source: ImageSource.camera,
     );
     if (pickedFile != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tempProfileImagePath', pickedFile.path);
+
+      setState(() {
+        tempProfileImagePath = pickedFile.path;
+      });
+
       _uploadImage(File(pickedFile.path));
     }
   }
@@ -124,6 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getInt('user_id');
         await prefs.setString('profileImage', imageUrl);
+        await prefs.remove('tempProfileImagePath');
 
         final dbUrl = Uri.parse(
           'https://buildmate-db.onrender.com/api/users/$userId',
@@ -137,15 +156,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (dbResponse.statusCode == 200) {
           setState(() {
             profileImagePath = imageUrl;
+            tempProfileImagePath = null;
           });
-        } else {
-          // Handle DB update error
         }
-      } else {
-        // Handle ImgBB upload error
       }
     } catch (e) {
-      // Handle error
+      // Handle upload error (optional)
     }
   }
 
@@ -155,7 +171,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Header Card
+            // Profile Header
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -201,12 +217,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           child: CircleAvatar(
                             radius: 45,
-                            backgroundImage: profileImagePath != null
+                            backgroundImage: tempProfileImagePath != null
+                                ? FileImage(File(tempProfileImagePath!))
+                                : profileImagePath != null
                                 ? NetworkImage(profileImagePath!)
                                       as ImageProvider
                                 : null,
                             backgroundColor: Colors.white,
-                            child: profileImagePath == null
+                            child:
+                                tempProfileImagePath == null &&
+                                    profileImagePath == null
                                 ? const Icon(
                                     Icons.person_outline,
                                     size: 40,
@@ -244,35 +264,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // if (isLoggedIn)
-            //   Text(
-            //     username ?? 'User',
-            //     style: const TextStyle(
-            //       fontSize: 18,
-            //       fontWeight: FontWeight.bold,
-            //     ),
-            //   ),
             const SizedBox(height: 20),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Expanded(
+                children: const [
+                  Expanded(
                     child: _StatusCard(
                       icon: Icons.check_circle,
                       label: "Delivered",
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: 12),
+                  Expanded(
                     child: _StatusCard(icon: Icons.sync, label: "Processing"),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: 12),
+                  Expanded(
                     child: _StatusCard(icon: Icons.cancel, label: "Cancelled"),
                   ),
                 ],
@@ -296,8 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildOption(Icons.location_on, "Shipping Address"),
             _buildOption(
               Icons.logout,
-              isLoggedIn == false ? "Login" : "Logout",
-              isLogout: isLoggedIn == false ? true : false,
+              isLoggedIn ? "Logout" : "Login",
+              isLogout: !isLoggedIn,
               onTap: () {
                 if (!isLoggedIn) {
                   Navigator.push(
