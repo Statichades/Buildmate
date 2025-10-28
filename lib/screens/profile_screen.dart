@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:buildmate/screens/auth_screen.dart';
 import 'package:buildmate/screens/edit_profile_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -220,12 +221,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             backgroundImage: tempProfileImagePath != null
                                 ? FileImage(File(tempProfileImagePath!))
                                 : profileImagePath != null
-                                ? NetworkImage(profileImagePath!)
-                                      as ImageProvider
-                                : null,
+                                    ? CachedNetworkImageProvider(
+                                        profileImagePath!)
+                                    : null,
                             backgroundColor: Colors.white,
-                            child:
-                                tempProfileImagePath == null &&
+                            child: tempProfileImagePath == null &&
                                     profileImagePath == null
                                 ? const Icon(
                                     Icons.person_outline,

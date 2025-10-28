@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -7,6 +8,7 @@ Widget productCard({
   required String name,
   required String price,
   required int stock,
+  required String categoryName,
 }) {
   return InkWell(
     splashColor: Colors.transparent,
@@ -38,32 +40,32 @@ Widget productCard({
               child: Skeleton.replace(
                 width: double.infinity,
                 height: double.infinity,
-                // when skeletonizer is enabled, `replacement` will be shown and skeletonized
                 replacement: DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                // the real image widget is provided as the child
-                child: Image.network(
-                  imageUrl,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  // fallback when image fails to load (no internet, etc.)
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      alignment: Alignment.center,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          fit: BoxFit.contain,
-                        ),
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF615EFC),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[200],
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
             ),

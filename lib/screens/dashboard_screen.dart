@@ -1,4 +1,3 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:http/http.dart' as http;
@@ -25,11 +24,11 @@ class DashboardScreen extends StatefulWidget {
 class DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    HomeContent(),
-    CategoriesScreen(),
-    CartScreen(),
-    ProfileScreen(),
+  final List<Widget> _pages = [
+    const HomeContent(),
+    const CategoriesScreen(),
+    const CartScreen(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -42,7 +41,10 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -121,28 +123,36 @@ class _HomeContentState extends State<HomeContent> {
           .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         List<dynamic> productJson = json.decode(response.body);
-        setState(() {
-          products = productJson
-              .map((json) => product_model.Product.fromJson(json))
-              .toList();
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            products = productJson
+                .map((json) => product_model.Product.fromJson(json))
+                .toList();
+            isLoading = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            error = 'Failed to load products: ${response.statusCode}';
+            isLoading = false;
+          });
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
         setState(() {
-          error = 'Failed to load products: ${response.statusCode}';
+          error = 'Request timed out. Please check your internet connection.';
           isLoading = false;
         });
       }
-    } on TimeoutException {
-      setState(() {
-        error = 'Request timed out. Please check your internet connection.';
-        isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        error = 'Error fetching products: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          error = 'Error fetching products: $e';
+          isLoading = false;
+        });
+      }
     } finally {
       client.close();
     }
@@ -162,6 +172,7 @@ class _HomeContentState extends State<HomeContent> {
           price: 0.0,
           stock: 0,
           imageUrl: '',
+          categoryName: '',
         ),
       );
 
@@ -184,6 +195,7 @@ class _HomeContentState extends State<HomeContent> {
               name: product.name,
               price: product.price.toString(),
               stock: product.stock,
+              categoryName: product.categoryName,
               onPressed: () {},
             );
           },
@@ -217,6 +229,7 @@ class _HomeContentState extends State<HomeContent> {
             name: product.name,
             price: product.price.toString(),
             stock: product.stock,
+            categoryName: product.categoryName,
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
@@ -312,97 +325,101 @@ class _HomeContentState extends State<HomeContent> {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Skeletonizer(
-                    enabled:
-                        (isLoading || error.isNotEmpty) && products.isEmpty,
-                    effect: const ShimmerEffect(
-                      baseColor: Color(0xFFE0E0E0),
-                      highlightColor: Color(0xFFF5F5F5),
-                      duration: Duration(milliseconds: 900),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF615EFC).withOpacity(0.08),
-                            spreadRadius: 0,
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+            child: RefreshIndicator(
+              onRefresh: _fetchProducts,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Skeletonizer(
+                      enabled:
+                          (isLoading || error.isNotEmpty) && products.isEmpty,
+                      effect: const ShimmerEffect(
+                        baseColor: Color(0xFFE0E0E0),
+                        highlightColor: Color(0xFFF5F5F5),
+                        duration: Duration(milliseconds: 900),
                       ),
-                      child: CarouselSlider.builder(
-                        options: CarouselOptions(
-                          height: size.height * 0.22,
-                          autoPlay: true,
-                          enlargeCenterPage: true,
-                          aspectRatio: 16 / 9,
-                          viewportFraction: 1,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF615EFC).withOpacity(0.08),
+                              spreadRadius: 0,
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        itemCount: carouselImages.length,
-                        itemBuilder: (context, index, realIndex) {
-                          final image = carouselImages[index];
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Skeleton.replace(
-                              width: double.infinity,
-                              height: double.infinity,
-                              replacement: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
+                        child: CarouselSlider.builder(
+                          options: CarouselOptions(
+                            height: size.height * 0.22,
+                            autoPlay: true,
+                            enlargeCenterPage: true,
+                            aspectRatio: 16 / 9,
+                            viewportFraction: 1,
+                          ),
+                          itemCount: carouselImages.length,
+                          itemBuilder: (context, index, realIndex) {
+                            final image = carouselImages[index];
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Skeleton.replace(
+                                width: double.infinity,
+                                height: double.infinity,
+                                replacement: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                  ),
+                                ),
+                                child: Image.asset(
+                                  image,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
                                 ),
                               ),
-                              child: Image.asset(
-                                image,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Products",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                            );
+                          },
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          "See All",
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Products",
                           style: TextStyle(
-                            color: Color(0xFF615EFC),
-                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Skeletonizer(
-                    enabled:
-                        (isLoading || error.isNotEmpty) && products.isEmpty,
-                    effect: const ShimmerEffect(
-                      baseColor: Color(0xFFE0E0E0),
-                      highlightColor: Color(0xFFF5F5F5),
-                      duration: Duration(milliseconds: 900),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text(
+                            "See All",
+                            style: TextStyle(
+                              color: Color(0xFF615EFC),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: productsSection,
-                  ),
-                ],
+                    Skeletonizer(
+                      enabled:
+                          (isLoading || error.isNotEmpty) && products.isEmpty,
+                      effect: const ShimmerEffect(
+                        baseColor: Color(0xFFE0E0E0),
+                        highlightColor: Color(0xFFF5F5F5),
+                        duration: Duration(milliseconds: 900),
+                      ),
+                      child: productsSection,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

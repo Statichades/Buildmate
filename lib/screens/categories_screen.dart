@@ -28,9 +28,11 @@ class CategoriesScreenState extends State<CategoriesScreen> {
 
   Future<void> _loadGridPreference() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      isGrid = prefs.getBool('isGridPreference') ?? true;
-    });
+    if (mounted) {
+      setState(() {
+        isGrid = prefs.getBool('isGridPreference') ?? true;
+      });
+    }
   }
 
   Future<void> _saveGridPreference(bool value) async {
@@ -47,24 +49,29 @@ class CategoriesScreenState extends State<CategoriesScreen> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          // Map API response into your local format
-          categories = data.map((cat) {
-            return {
-              "id": cat['id'],
-              "title": cat['name'],
-              "icon": _getIconForCategory(cat['name']),
-            };
-          }).toList();
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            categories = data.map((cat) {
+              return {
+                "id": cat['id'],
+                "title": cat['name'],
+                "icon": _getIconForCategory(cat['name']),
+              };
+            }).toList();
+            _isLoading = false;
+          });
+        }
       } else {
         debugPrint('Failed to fetch categories: ${response.statusCode}');
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       debugPrint('Error fetching categories: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -123,35 +130,38 @@ class CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
-      body: Skeletonizer(
-        enabled: _isLoading,
-        child: isGrid
-            ? gridView(
-                _isLoading
-                    ? List.generate(
-                        6,
-                        (index) => {
-                          "id": index,
-                          "title": "Loading...",
-                          "icon": Icons.category,
-                        },
-                      )
-                    : categories,
-                _onCategoryTap,
-              )
-            : listView(
-                _isLoading
-                    ? List.generate(
-                        6,
-                        (index) => {
-                          "id": index,
-                          "title": "Loading...",
-                          "icon": Icons.category,
-                        },
-                      )
-                    : categories,
-                _onCategoryTap,
-              ),
+      body: RefreshIndicator(
+        onRefresh: _fetchCategories,
+        child: Skeletonizer(
+          enabled: _isLoading,
+          child: isGrid
+              ? gridView(
+                  _isLoading
+                      ? List.generate(
+                          6,
+                          (index) => {
+                            "id": index,
+                            "title": "Loading...",
+                            "icon": Icons.category,
+                          },
+                        )
+                      : categories,
+                  _onCategoryTap,
+                )
+              : listView(
+                  _isLoading
+                      ? List.generate(
+                          6,
+                          (index) => {
+                            "id": index,
+                            "title": "Loading...",
+                            "icon": Icons.category,
+                          },
+                        )
+                      : categories,
+                  _onCategoryTap,
+                ),
+        ),
       ),
     );
   }

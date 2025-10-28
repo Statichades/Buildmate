@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:buildmate/utils/toast_util.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,7 +58,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.network(widget.product.imageUrl, fit: BoxFit.cover),
+            child: CachedNetworkImage(
+              imageUrl: widget.product.imageUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF615EFC),
+                ),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
           ),
           Positioned.fill(
             child: Container(
