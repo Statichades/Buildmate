@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'checkout_screen.dart';
 
 class CartItem {
   final int productId;
@@ -60,7 +61,7 @@ class _CartScreenState extends State<CartScreen> {
       }
 
       final url = Uri.parse(
-        'https://buildmate-db.onrender.com/cart/$userId/${item.productId}',
+        'https://buildmate-db.onrender.com/api/cart/$userId/${item.productId}',
       );
       print("Attempting to delete from URL: $url");
 
@@ -165,22 +166,27 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        title: const Text(
+          'My Cart',
+          style: TextStyle(
+            color: Color(0xFF615EFC),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.grey.withOpacity(0.1),
+        iconTheme: const IconThemeData(color: Color(0xFF615EFC)),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
-        title: const Text(
-          "My Cart",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        shadowColor: const Color(0xFF615EFC).withOpacity(0.2),
-        foregroundColor: Colors.black,
+        automaticallyImplyLeading: false,
         actions: [
           if (hasSelected)
             IconButton(
               onPressed: _deleteSelectedCartItems,
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline, color: Color(0xFF615EFC)),
             ),
         ],
       ),
@@ -389,11 +395,12 @@ class _CartScreenState extends State<CartScreen> {
             ),
             onPressed: _cartItems.isNotEmpty
                 ? () {
-                    if (totalPrice > 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Proceeding to checkout..."),
-                          backgroundColor: Colors.green,
+                    final selectedItems = _cartItems.where((item) => item.isSelected).toList();
+                    if (selectedItems.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CheckoutScreen(cartItems: selectedItems),
                         ),
                       );
                     } else {

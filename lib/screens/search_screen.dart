@@ -237,7 +237,7 @@ class _SearchScreenState extends State<SearchScreen> {
         actions: [
           IconButton(
             onPressed: _showFilterSheet,
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list, color: Color(0xFF615EFC)),
           ),
         ],
       ),

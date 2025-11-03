@@ -10,6 +10,7 @@ import 'profile_screen.dart';
 import 'product_details_screen.dart';
 import 'search_screen.dart';
 import 'login_screen.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -98,9 +99,14 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   List<product_model.Product> products = [];
+  List<product_model.Product> displayedProducts = [];
   bool isLoading = true;
+  bool isLoadingMore = false;
   String error = '';
   int activeIndex = 0;
+  int currentBatch = 0;
+  final int batchSize = 10;
+  final ScrollController _scrollController = ScrollController();
   final carouselImages = [
     "assets/images/logo.png",
     "assets/images/logo.png",
@@ -111,6 +117,19 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _fetchProducts();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      _loadMoreProducts();
+    }
   }
 
   Future<void> _fetchProducts() async {
@@ -128,6 +147,7 @@ class _HomeContentState extends State<HomeContent> {
             products = productJson
                 .map((json) => product_model.Product.fromJson(json))
                 .toList();
+            _loadInitialBatch();
             isLoading = false;
           });
         }
@@ -157,6 +177,32 @@ class _HomeContentState extends State<HomeContent> {
       client.close();
     }
   }
+
+  void _loadInitialBatch() {
+    final endIndex = (currentBatch + 1) * batchSize;
+    displayedProducts = products.take(endIndex).toList();
+  }
+
+  void _loadMoreProducts() {
+    if (isLoadingMore || displayedProducts.length >= products.length) return;
+
+    setState(() => isLoadingMore = true);
+
+    // Simulate loading delay for better UX
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          currentBatch++;
+          final startIndex = currentBatch * batchSize;
+          final endIndex = (currentBatch + 1) * batchSize;
+          displayedProducts.addAll(products.skip(startIndex).take(batchSize));
+          isLoadingMore = false;
+        });
+      }
+    });
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -220,9 +266,9 @@ class _HomeContentState extends State<HomeContent> {
           mainAxisSpacing: 12,
           childAspectRatio: 0.7,
         ),
-        itemCount: products.length,
+        itemCount: displayedProducts.length,
         itemBuilder: (context, index) {
-          final product = products[index];
+          final product = displayedProducts[index];
 
           return productCard(
             imageUrl: product.imageUrl,
@@ -290,140 +336,149 @@ class _HomeContentState extends State<HomeContent> {
     }
 
     return SafeArea(
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: TextField(
-              readOnly: true,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SearchScreen(allProducts: products),
-                  ),
-                );
-              },
-              decoration: const InputDecoration(
-                hintText: "Search products",
-                border: InputBorder.none,
-                icon: Icon(Icons.search, color: Color(0xFF615EFC)),
-              ),
-            ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _fetchProducts,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Skeletonizer(
-                      enabled:
-                          (isLoading || error.isNotEmpty) && products.isEmpty,
-                      effect: const ShimmerEffect(
-                        baseColor: Color(0xFFE0E0E0),
-                        highlightColor: Color(0xFFF5F5F5),
-                        duration: Duration(milliseconds: 900),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF615EFC).withOpacity(0.08),
-                              spreadRadius: 0,
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: CarouselSlider.builder(
-                          options: CarouselOptions(
-                            height: size.height * 0.22,
-                            autoPlay: true,
-                            enlargeCenterPage: true,
-                            aspectRatio: 16 / 9,
-                            viewportFraction: 1,
-                          ),
-                          itemCount: carouselImages.length,
-                          itemBuilder: (context, index, realIndex) {
-                            final image = carouselImages[index];
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Skeleton.replace(
-                                width: double.infinity,
-                                height: double.infinity,
-                                replacement: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                  ),
-                                ),
-                                child: Image.asset(
-                                  image,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Products",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text(
-                            "See All",
-                            style: TextStyle(
-                              color: Color(0xFF615EFC),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Skeletonizer(
-                      enabled:
-                          (isLoading || error.isNotEmpty) && products.isEmpty,
-                      effect: const ShimmerEffect(
-                        baseColor: Color(0xFFE0E0E0),
-                        highlightColor: Color(0xFFF5F5F5),
-                        duration: Duration(milliseconds: 900),
-                      ),
-                      child: productsSection,
+      child: RefreshIndicator(
+        onRefresh: _fetchProducts,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
+                child: TextField(
+                  readOnly: true,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SearchScreen(allProducts: products),
+                      ),
+                    );
+                  },
+                  decoration: const InputDecoration(
+                    hintText: "Search products",
+                    border: InputBorder.none,
+                    icon: Icon(Icons.search, color: Color(0xFF615EFC)),
+                  ),
+                ),
               ),
-            ),
+              Skeletonizer(
+                enabled:
+                    (isLoading || error.isNotEmpty) && products.isEmpty,
+                effect: const ShimmerEffect(
+                  baseColor: Color(0xFFE0E0E0),
+                  highlightColor: Color(0xFFF5F5F5),
+                  duration: Duration(milliseconds: 900),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF615EFC).withOpacity(0.08),
+                        spreadRadius: 0,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: CarouselSlider.builder(
+                    options: CarouselOptions(
+                      height: size.height * 0.22,
+                      autoPlay: true,
+                      enlargeCenterPage: true,
+                      aspectRatio: 16 / 9,
+                      viewportFraction: 1,
+                    ),
+                    itemCount: carouselImages.length,
+                    itemBuilder: (context, index, realIndex) {
+                      final image = carouselImages[index];
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            Skeleton.replace(
+                              width: double.infinity,
+                              height: double.infinity,
+                              replacement: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                ),
+                              ),
+                              child: Image.asset(
+                                image,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                            ),
+
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Products",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      "See All",
+                      style: TextStyle(
+                        color: Color(0xFF615EFC),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Skeletonizer(
+                enabled:
+                    (isLoading || error.isNotEmpty) && products.isEmpty,
+                effect: const ShimmerEffect(
+                  baseColor: Color(0xFFE0E0E0),
+                  highlightColor: Color(0xFFF5F5F5),
+                  duration: Duration(milliseconds: 900),
+                ),
+                child: productsSection,
+              ),
+              if (isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF615EFC),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

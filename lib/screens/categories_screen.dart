@@ -108,19 +108,25 @@ class CategoriesScreenState extends State<CategoriesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        title: const Text(
+          'Categories',
+          style: TextStyle(
+            color: Color(0xFF615EFC),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.grey.withOpacity(0.1),
+        iconTheme: const IconThemeData(color: Color(0xFF615EFC)),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
-        title: const Text(
-          "Categories",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(isGrid ? Icons.view_list : Icons.grid_view),
+            icon: Icon(isGrid ? Icons.view_list : Icons.grid_view, color: Color(0xFF615EFC)),
             onPressed: () {
               setState(() {
                 isGrid = !isGrid;

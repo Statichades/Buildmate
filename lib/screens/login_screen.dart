@@ -1,6 +1,7 @@
 import 'package:buildmate/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/screens/signup_screen.dart';
+import 'package:buildmate/screens/email_verification_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:buildmate/utils/toast_util.dart';
@@ -47,15 +48,26 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setInt('user_id', responseBody['id']);
         await prefs.setString('name', responseBody['name']);
         await prefs.setString('email', responseBody['email']);
+        await prefs.setBool('email_verified', responseBody['email_verified'] == 1);
         await prefs.setBool('isLoggedIn', true);
 
-        showModernToast(message: 'Login successful');
-        if (mounted) {
-          // Login na
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()),
-          );
+        if (responseBody['email_verified'] != 1) {
+          showModernToast(message: 'Please verify your email before logging in');
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => EmailVerificationScreen(email: responseBody['email'])),
+            );
+          }
+        } else {
+          showModernToast(message: 'Login successful');
+          if (mounted) {
+            // Login na
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            );
+          }
         }
       } else {
         final errorMessage = responseBody['error'] ?? 'Invalid credentials';
@@ -100,14 +112,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
-                        hintText: "Email",
+                        labelText: "Email",
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
                         ),
-                        filled: true,
-                        fillColor: Colors.grey[100],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF615EFC)),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 14,
                           horizontal: 16,
@@ -119,14 +132,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: passwordController,
                       obscureText: true,
                       decoration: InputDecoration(
-                        hintText: "Password",
+                        labelText: "Password",
                         prefixIcon: const Icon(Icons.lock_outline),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
                         ),
-                        filled: true,
-                        fillColor: Colors.grey[100],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF615EFC)),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 14,
                           horizontal: 16,

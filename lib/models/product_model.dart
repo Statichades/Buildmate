@@ -5,6 +5,9 @@ class Product {
   final int stock;
   final String imageUrl;
   final String categoryName;
+  final String? description;
+  final double? rating;
+  final List<String>? specifications;
 
   Product({
     required this.id,
@@ -13,6 +16,9 @@ class Product {
     required this.stock,
     required this.imageUrl,
     required this.categoryName,
+    this.description,
+    this.rating,
+    this.specifications,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -50,6 +56,9 @@ class Product {
       stock: toInt(json['stock']),
       imageUrl: toStringSafe(image),
       categoryName: toStringSafe(json['category_name']),
+      description: json['description'] != null ? toStringSafe(json['description']) : null,
+      rating: json['rating'] != null ? toDouble(json['rating']) : null,
+      specifications: json['specifications'] is List ? List<String>.from(json['specifications']) : null,
     );
   }
 }

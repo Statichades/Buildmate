@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:buildmate/screens/auth_screen.dart';
 import 'package:buildmate/screens/edit_profile_screen.dart';
+import 'package:buildmate/screens/order_history_screen.dart';
+import 'package:buildmate/screens/shipping_address_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -45,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.remove('profileImage');
     await prefs.remove('tempProfileImagePath');
     await prefs.remove('user_id');
+    await prefs.remove('email_verified');
 
     setState(() {
       isLoggedIn = false;
@@ -123,6 +126,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       _uploadImage(File(pickedFile.path));
     }
+  }
+
+  void _navigateToOrderHistory(String filter) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderHistoryScreen(initialFilter: filter),
+      ),
+    );
   }
 
   Future<void> _uploadImage(File image) async {
@@ -270,20 +282,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Expanded(
-                    child: _StatusCard(
-                      icon: Icons.check_circle,
-                      label: "Delivered",
+                    child: GestureDetector(
+                      onTap: () => _navigateToOrderHistory('delivered'),
+                      child: _StatusCard(
+                        icon: Icons.check_circle,
+                        label: "Delivered",
+                      ),
                     ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
-                    child: _StatusCard(icon: Icons.sync, label: "Processing"),
+                    child: GestureDetector(
+                      onTap: () => _navigateToOrderHistory('processing'),
+                      child: _StatusCard(
+                        icon: Icons.sync,
+                        label: "Processing",
+                      ),
+                    ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
-                    child: _StatusCard(icon: Icons.cancel, label: "Cancelled"),
+                    child: GestureDetector(
+                      onTap: () => _navigateToOrderHistory('cancelled'),
+                      child: _StatusCard(
+                        icon: Icons.cancel,
+                        label: "Cancelled",
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -303,7 +330,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ).then((_) => _loadProfile());
               },
             ),
-            _buildOption(Icons.location_on, "Shipping Address"),
+            _buildOption(Icons.location_on, "Shipping Address", onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ShippingAddressScreen(),
+                ),
+              );
+            }),
             _buildOption(
               Icons.logout,
               isLoggedIn ? "Logout" : "Login",
@@ -333,56 +367,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(15),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.08),
-                  spreadRadius: 1,
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF615EFC).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF615EFC).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: const Color(0xFF615EFC), size: 22),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isLogout
-                          ? const Color(0xFF615EFC)
-                          : Colors.black87,
-                    ),
+                child: Icon(icon, color: const Color(0xFF615EFC), size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: isLogout
+                        ? const Color(0xFF615EFC)
+                        : Colors.black87,
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.grey.withOpacity(0.7),
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey.withOpacity(0.7),
+              ),
+            ],
           ),
         ),
       ),
