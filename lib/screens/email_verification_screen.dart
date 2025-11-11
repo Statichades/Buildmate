@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:buildmate/services/auth_service.dart';
 import 'package:buildmate/utils/toast_util.dart';
 import 'package:buildmate/screens/login_screen.dart';
 
@@ -10,7 +9,8 @@ class EmailVerificationScreen extends StatefulWidget {
   const EmailVerificationScreen({super.key, required this.email});
 
   @override
-  State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
+  State<EmailVerificationScreen> createState() =>
+      _EmailVerificationScreenState();
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
@@ -21,7 +21,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void initState() {
     super.initState();
-    _resendCode(); // Automatically send verification code on screen load
+    // Verification code is already sent during signup
   }
 
   Future<void> _verifyEmail() async {
@@ -35,19 +35,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => isVerifying = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('https://buildmate-db.onrender.com/api/users/verify-email'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': widget.email, 'verification_code': code}),
-      ).timeout(const Duration(seconds: 15));
+      final authService = AuthService();
+      final success = await authService.verifyEmail(widget.email, code);
 
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
-      debugPrint('Response headers: ${response.headers}');
-
-      final responseBody = json.decode(response.body);
-
-      if (response.statusCode == 200) {
+      if (success) {
         showModernToast(message: 'Email verified successfully');
         if (mounted) {
           Navigator.pushReplacement(
@@ -56,7 +47,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           );
         }
       } else {
-        showModernToast(message: responseBody['error'] ?? 'Verification failed');
+        showModernToast(message: 'Verification failed');
       }
     } catch (e) {
       debugPrint('Error: $e');
@@ -72,22 +63,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => isResending = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('https://buildmate-db.onrender.com/api/users/send-verification'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': widget.email}),
-      ).timeout(const Duration(seconds: 15));
+      final authService = AuthService();
+      final success = await authService.sendVerificationEmail(widget.email);
 
-      debugPrint('Resend Response status: ${response.statusCode}');
-      debugPrint('Resend Response body: ${response.body}');
-      debugPrint('Resend Response headers: ${response.headers}');
-
-      final responseBody = json.decode(response.body);
-
-      if (response.statusCode == 200) {
+      if (success) {
         showModernToast(message: 'Verification code sent');
       } else {
-        showModernToast(message: responseBody['error'] ?? 'Failed to send code');
+        showModernToast(message: 'Failed to send code');
       }
     } catch (e) {
       debugPrint('Resend Error: $e');
@@ -143,7 +125,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           color: Colors.grey,
                         ),
                         children: [
-                          const TextSpan(text: 'We sent a verification code to '),
+                          const TextSpan(
+                            text: 'We sent a verification code to ',
+                          ),
                           TextSpan(
                             text: widget.email,
                             style: const TextStyle(
@@ -157,9 +141,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     const SizedBox(height: 32),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: TextFormField(
                         controller: codeController,
@@ -179,11 +169,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             fontSize: 24,
                             letterSpacing: 8,
                           ),
-                          border: InputBorder.none,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 20,
                             horizontal: 16,
                           ),
+                          filled: true,
+                          fillColor: Colors.white,
                         ),
                       ),
                     ),
@@ -203,7 +205,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.0,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text(
@@ -256,7 +260,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       onTap: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
                         );
                       },
                       child: Row(

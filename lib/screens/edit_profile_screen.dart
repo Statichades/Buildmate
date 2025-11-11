@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:buildmate/services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -26,12 +25,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _usernameController.text = prefs.getString('name') ?? '';
-      _emailController.text = prefs.getString('email') ?? '';
-      // Password is not loaded for security reasons
-    });
+    final authService = AuthService();
+    final user = await authService.getCurrentUser();
+    if (user != null) {
+      setState(() {
+        _usernameController.text = user.name;
+        _emailController.text = user.email;
+        _mobileController.text = user.mobileNumber ?? '';
+        // Password is not loaded for security reasons
+      });
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -51,39 +54,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         body['password'] = _passwordController.text;
       }
 
-      final dbUrl = Uri.parse(
-        'https://buildmate-db.onrender.com/api/users/$userId',
-      );
-      final response = await http.patch(
-        dbUrl,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      );
+      final authService = AuthService();
+      final success = await authService.updateProfile(userId!, body);
 
       setState(() => _isLoading = false);
 
-      if (response.statusCode == 200) {
-        await prefs.setString('name', _usernameController.text);
-        await prefs.setString('email', _emailController.text);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        await Future.delayed(const Duration(seconds: 1));
-        Navigator.pop(context, true);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) Navigator.pop(context, true);
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to update profile. Please try again.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Failed to update profile. Please try again.',
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -158,10 +163,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Text(
                 'Keep your information up to date',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 40),
               _buildModernTextField(
@@ -248,9 +250,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.0,
-                            valueColor: AlwaysStoppedAnimation(
-                              Colors.white,
-                            ),
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
                           ),
                         ),
                     ],
@@ -295,10 +295,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             color: Colors.grey.shade600,
             fontWeight: FontWeight.w500,
           ),
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF615EFC),
-          ),
+          prefixIcon: Icon(icon, color: const Color(0xFF615EFC)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -313,6 +310,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           filled: true,
           fillColor: Colors.white,
+          floatingLabelStyle: const TextStyle(
+            color: Color(0xFF615EFC),
+            fontWeight: FontWeight.w600,
+          ),
         ),
         validator: validator,
       ),

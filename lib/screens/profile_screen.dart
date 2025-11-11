@@ -8,8 +8,9 @@ import 'package:buildmate/screens/shipping_address_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:buildmate/services/auth_service.dart';
+import 'package:buildmate/models/user_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,10 +20,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool isLoggedIn = false;
-  String? username;
-  String? profileImagePath;
+  User? currentUser;
   String? tempProfileImagePath;
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -31,34 +31,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+    final authService = AuthService();
+    final user = await authService.getCurrentUser();
     setState(() {
-      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-      username = prefs.getString('name');
-      profileImagePath = prefs.getString('profileImage');
-      tempProfileImagePath = prefs.getString('tempProfileImagePath');
+      currentUser = user;
     });
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('isLoggedIn');
-    await prefs.remove('name');
-    await prefs.remove('profileImage');
-    await prefs.remove('tempProfileImagePath');
-    await prefs.remove('user_id');
-    await prefs.remove('email_verified');
+    final authService = AuthService();
+    await authService.logout();
 
     setState(() {
-      isLoggedIn = false;
-      username = null;
-      profileImagePath = null;
+      currentUser = null;
       tempProfileImagePath = null;
     });
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
-    );
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+      );
+    }
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -101,13 +94,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       source: ImageSource.gallery,
     );
     if (pickedFile != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('tempProfileImagePath', pickedFile.path);
-
       setState(() {
         tempProfileImagePath = pickedFile.path;
       });
-
       _uploadImage(File(pickedFile.path));
     }
   }
@@ -117,13 +106,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       source: ImageSource.camera,
     );
     if (pickedFile != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('tempProfileImagePath', pickedFile.path);
-
       setState(() {
         tempProfileImagePath = pickedFile.path;
       });
-
       _uploadImage(File(pickedFile.path));
     }
   }
@@ -152,25 +137,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final imageUrl = decodedData['data']['url'];
         final deleteUrl = decodedData['data']['delete_url'];
 
-        final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getInt('user_id');
-        await prefs.setString('profileImage', imageUrl);
-        await prefs.remove('tempProfileImagePath');
-
-        final dbUrl = Uri.parse(
-          'https://buildmate-db.onrender.com/api/users/$userId',
-        );
-        final dbResponse = await http.patch(
-          dbUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'profile_url': imageUrl, 'delete_url': deleteUrl}),
-        );
-
-        if (dbResponse.statusCode == 200) {
-          setState(() {
-            profileImagePath = imageUrl;
-            tempProfileImagePath = null;
+        if (currentUser != null) {
+          final authService = AuthService();
+          final success = await authService.updateProfile(currentUser!.id, {
+            'profile_url': imageUrl,
+            'delete_url': deleteUrl,
           });
+
+          if (success) {
+            setState(() {
+              currentUser = currentUser!.copyWith(
+                profileUrl: imageUrl,
+                deleteUrl: deleteUrl,
+              );
+              tempProfileImagePath = null;
+            });
+          }
         }
       }
     } catch (e) {
@@ -232,13 +214,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             radius: 45,
                             backgroundImage: tempProfileImagePath != null
                                 ? FileImage(File(tempProfileImagePath!))
-                                : profileImagePath != null
-                                    ? CachedNetworkImageProvider(
-                                        profileImagePath!)
-                                    : null,
+                                : currentUser?.profileUrl != null
+                                ? CachedNetworkImageProvider(
+                                    currentUser!.profileUrl!,
+                                  )
+                                : null,
                             backgroundColor: Colors.white,
-                            child: tempProfileImagePath == null &&
-                                    profileImagePath == null
+                            child:
+                                tempProfileImagePath == null &&
+                                    currentUser?.profileUrl == null
                                 ? const Icon(
                                     Icons.person_outline,
                                     size: 40,
@@ -263,14 +247,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (isLoggedIn)
-                    Text(
-                      username ?? 'User',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF615EFC),
-                      ),
+                  if (currentUser != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          currentUser!.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF615EFC),
+                          ),
+                        ),
+                        if (!_isOnline)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.orange,
+                                width: 1,
+                              ),
+                            ),
+                            child: const Text(
+                              'Offline',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                 ],
               ),
@@ -296,10 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _navigateToOrderHistory('processing'),
-                      child: _StatusCard(
-                        icon: Icons.sync,
-                        label: "Processing",
-                      ),
+                      child: _StatusCard(icon: Icons.sync, label: "Processing"),
                     ),
                   ),
                   SizedBox(width: 12),
@@ -330,20 +340,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ).then((_) => _loadProfile());
               },
             ),
-            _buildOption(Icons.location_on, "Shipping Address", onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ShippingAddressScreen(),
-                ),
-              );
-            }),
+            _buildOption(
+              Icons.location_on,
+              "Shipping Address",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ShippingAddressScreen(),
+                  ),
+                );
+              },
+            ),
             _buildOption(
               Icons.logout,
-              isLoggedIn ? "Logout" : "Login",
-              isLogout: !isLoggedIn,
+              currentUser != null ? "Logout" : "Login",
+              isLogout: currentUser == null,
               onTap: () {
-                if (!isLoggedIn) {
+                if (currentUser == null) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AuthScreen()),
@@ -401,9 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: isLogout
-                        ? const Color(0xFF615EFC)
-                        : Colors.black87,
+                    color: isLogout ? const Color(0xFF615EFC) : Colors.black87,
                   ),
                 ),
               ),

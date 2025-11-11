@@ -2,8 +2,7 @@ import 'package:buildmate/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/screens/login_screen.dart';
 import 'package:buildmate/screens/email_verification_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:buildmate/services/auth_service.dart';
 import 'dart:async';
 
 class SignUpScreen extends StatefulWidget {
@@ -61,46 +60,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    final client = http.Client();
     setState(() => isSigningUp = true);
 
     //then e add ang user adto sa database
     try {
-      final response = await client
-          .post(
-            Uri.parse("https://buildmate-db.onrender.com/api/users"),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "name": username,
-              "email": email,
-              "password": password,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+      final authService = AuthService();
+      final result = await authService.register(username, email, password);
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201) {
+      if (result['success'] == true) {
         showModernToast(
-          message: "Account created successfully!",
+          message: "Account created successfully! Please verify your email.",
         );
         firstNameController.clear();
         lastNameController.clear();
         emailController.clear();
         passwordController.clear();
         confirmPasswordController.clear();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-      } else if (response.statusCode == 409) {
-        showModernToast(
-          message: data["error"] ?? "Email already registered",
-          backgroundColor: Colors.redAccent,
-        );
+
+        // Send verification email
+        await authService.sendVerificationEmail(email);
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(email: email),
+            ),
+          );
+        }
       } else {
         showModernToast(
-          message: data["error"] ?? "Failed to create account",
+          message: result['error'] ?? "Failed to create account",
           backgroundColor: Colors.redAccent,
         );
       }
@@ -112,7 +102,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       showModernToast(message: "Error: $e", backgroundColor: Colors.redAccent);
     } finally {
-      client.close();
       setState(() => isSigningUp = false);
     }
   }
@@ -176,7 +165,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF615EFC),
+                                    width: 2,
+                                  ),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                   vertical: 18,
@@ -184,6 +176,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
+                                floatingLabelStyle: const TextStyle(
+                                  color: Color(0xFF615EFC),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
@@ -220,7 +216,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF615EFC),
+                                    width: 2,
+                                  ),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                   vertical: 18,
@@ -228,6 +227,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
+                                floatingLabelStyle: const TextStyle(
+                                  color: Color(0xFF615EFC),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
@@ -266,7 +269,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 18,
@@ -274,6 +280,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           filled: true,
                           fillColor: Colors.white,
+                          floatingLabelStyle: const TextStyle(
+                            color: Color(0xFF615EFC),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -309,7 +319,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 18,
@@ -317,6 +330,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           filled: true,
                           fillColor: Colors.white,
+                          floatingLabelStyle: const TextStyle(
+                            color: Color(0xFF615EFC),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -352,7 +369,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 18,
@@ -360,6 +380,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           filled: true,
                           fillColor: Colors.white,
+                          floatingLabelStyle: const TextStyle(
+                            color: Color(0xFF615EFC),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

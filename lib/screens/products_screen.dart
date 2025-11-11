@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:buildmate/models/product_model.dart';
+import 'dart:convert';
 import 'package:buildmate/screens/product_details_screen.dart';
 import 'package:buildmate/screens/login_screen.dart';
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -20,6 +20,7 @@ class ProductsScreen extends StatefulWidget {
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> _products = [];
   bool _isLoading = true;
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -28,27 +29,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _fetchProducts() async {
-    final url = Uri.parse('https://buildmate-db.onrender.com/api/products');
-
     try {
-      final response = await http.get(url);
+      final response = await ApiService().get('/products?category=${widget.categoryName}');
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        final allProducts = data.map((item) => Product.fromJson(item)).toList();
-
-        // Filter products by category on the client-side
-        final filteredProducts = allProducts
-            .where((product) => product.categoryName == widget.categoryName)
+        final allProducts = (json.decode(response.body) as List)
+            .map((p) => Product.fromJson(p))
             .toList();
 
         if (mounted) {
           setState(() {
-            _products = filteredProducts;
+            _products = allProducts;
             _isLoading = false;
           });
         }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -81,8 +74,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         child: _isLoading
             ? _buildLoadingSkeleton()
             : _products.isEmpty
-                ? _buildEmptyState()
-                : _buildProductGrid(),
+            ? _buildEmptyState()
+            : _buildProductGrid(),
       ),
     );
   }
@@ -125,67 +118,72 @@ class _ProductsScreenState extends State<ProductsScreen> {
       itemCount: _products.length,
       itemBuilder: (context, index) {
         final product = _products[index];
-          return productCard(
-            imageUrl: product.imageUrl,
-            name: product.name,
-            price: product.price.toString(),
-            stock: product.stock,
-            categoryName: product.categoryName,
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+        return productCard(
+          imageUrl: product.imageUrl,
+          name: product.name,
+          price: product.price.toString(),
+          stock: product.stock,
+          categoryName: product.categoryName,
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-              if (!isLoggedIn) {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            if (!isLoggedIn) {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  title: Row(
+                    children: const [
+                      Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
+                      SizedBox(width: 8),
+                      Text('Login required'),
+                    ],
+                  ),
+                  content: const Text(
+                    'You need to login to view product details or buy products.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
                     ),
-                    title: Row(
-                      children: const [
-                        Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
-                        SizedBox(width: 8),
-                        Text('Login required'),
-                      ],
-                    ),
-                    content: const Text(
-                      'You need to login to view product details or buy products.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        if (mounted) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => const LoginScreen(),
                             ),
                           );
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(color: Color(0xFF615EFC)),
-                        ),
+                        }
+                      },
+                      child: const Text(
+                        'Login',
+                        style: TextStyle(color: Color(0xFF615EFC)),
                       ),
-                    ],
-                  ),
-                );
-              } else {
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              if (mounted) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProductDetailsScreen(product: product),
+                    builder: (context) =>
+                        ProductDetailsScreen(product: product),
                   ),
                 );
               }
-            },
-          );
+            }
+          },
+        );
       },
     );
   }
@@ -208,5 +206,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import '../models/order_model.dart';
+import '../models/shipping_address_model.dart';
 
 class ShippingAddressScreen extends StatefulWidget {
   const ShippingAddressScreen({super.key});
@@ -15,6 +15,7 @@ class ShippingAddressScreen extends StatefulWidget {
 class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
   List<ShippingAddress> _addresses = [];
   bool _isLoading = true;
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -32,19 +33,17 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/shipping-addresses/$userId'),
-        headers: {'Content-Type': 'application/json'},
+      final response = await ApiService().get(
+        '/shipping-addresses?user_id=$userId',
       );
-
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final addresses = (json.decode(response.body) as List)
+            .map((addr) => ShippingAddress.fromJson(addr))
+            .toList();
         setState(() {
-          _addresses = data.map((addr) => ShippingAddress.fromJson(addr)).toList();
+          _addresses = addresses;
           _isLoading = false;
         });
-      } else {
-        setState(() => _isLoading = false);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -55,22 +54,26 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
     if (address.id == null) return;
 
     try {
-      final response = await http.delete(
-        Uri.parse('https://buildmate-db.onrender.com/api/shipping-addresses/${address.id}'),
+      final response = await ApiService().delete(
+        '/shipping-addresses/${address.id}',
       );
 
       if (response.statusCode == 200) {
         setState(() {
           _addresses.remove(address);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Address deleted successfully')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Address deleted successfully')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete address')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to delete address')),
+        );
+      }
     }
   }
 
@@ -79,13 +82,36 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'Shipping Addresses',
-          style: TextStyle(
-            color: Color(0xFF615EFC),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Shipping Addresses',
+              style: TextStyle(
+                color: Color(0xFF615EFC),
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            if (!_isOnline)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange, width: 1),
+                ),
+                child: const Text(
+                  'Offline',
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 2,
@@ -163,9 +189,7 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  address != null
-                      ? address.fullName
-                      : 'John Doe',
+                  address != null ? address.fullName : 'John Doe',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -173,7 +197,10 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
                 ),
                 if (address?.isDefault ?? false)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF615EFC).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -191,15 +218,13 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              address != null
-                  ? address.phone
-                  : '+63 912 345 6789',
+              address != null ? address.phone : '+63 912 345 6789',
               style: TextStyle(color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
               address != null
-                  ? '${address.address}\n${address.city}, ${address.province} ${address.zipCode}'
+                  ? '${address.addressLine1}${address.addressLine2 != null ? '\n${address.addressLine2}' : ''}\n${address.city}, ${address.state} ${address.postalCode}'
                   : '123 Main St\nManila, Metro Manila 1000',
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -208,12 +233,16 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: address != null ? () => _editAddress(address) : null,
+                  onPressed: address != null
+                      ? () => _editAddress(address)
+                      : null,
                   child: const Text('Edit'),
                 ),
                 const SizedBox(width: 8),
                 TextButton(
-                  onPressed: address != null ? () => _deleteAddress(address) : null,
+                  onPressed: address != null
+                      ? () => _deleteAddress(address)
+                      : null,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   child: const Text('Delete'),
                 ),
@@ -226,21 +255,23 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
   }
 
   void _addNewAddress() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddEditAddressScreen(),
-      ),
-    ).then((_) => _fetchAddresses());
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AddEditAddressScreen()),
+      ).then((_) => _fetchAddresses());
+    }
   }
 
   void _editAddress(ShippingAddress address) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddEditAddressScreen(address: address),
-      ),
-    ).then((_) => _fetchAddresses());
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddEditAddressScreen(address: address),
+        ),
+      ).then((_) => _fetchAddresses());
+    }
   }
 }
 
@@ -257,10 +288,12 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
+  final _addressLine1Controller = TextEditingController();
+  final _addressLine2Controller = TextEditingController();
   final _cityController = TextEditingController();
-  final _provinceController = TextEditingController();
-  final _zipCodeController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _postalCodeController = TextEditingController();
+  final _countryController = TextEditingController();
   bool _isDefault = false;
   bool _isLoading = false;
 
@@ -270,10 +303,12 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     if (widget.address != null) {
       _fullNameController.text = widget.address!.fullName;
       _phoneController.text = widget.address!.phone;
-      _addressController.text = widget.address!.address;
+      _addressLine1Controller.text = widget.address!.addressLine1;
+      _addressLine2Controller.text = widget.address!.addressLine2 ?? '';
       _cityController.text = widget.address!.city;
-      _provinceController.text = widget.address!.province;
-      _zipCodeController.text = widget.address!.zipCode;
+      _stateController.text = widget.address!.state;
+      _postalCodeController.text = widget.address!.postalCode;
+      _countryController.text = widget.address!.country;
       _isDefault = widget.address!.isDefault;
     }
   }
@@ -282,10 +317,12 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
+    _addressLine1Controller.dispose();
+    _addressLine2Controller.dispose();
     _cityController.dispose();
-    _provinceController.dispose();
-    _zipCodeController.dispose();
+    _stateController.dispose();
+    _postalCodeController.dispose();
+    _countryController.dispose();
     super.dispose();
   }
 
@@ -306,48 +343,54 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       id: widget.address?.id,
       fullName: _fullNameController.text,
       phone: _phoneController.text,
-      address: _addressController.text,
+      addressLine1: _addressLine1Controller.text,
+      addressLine2: _addressLine2Controller.text.isEmpty
+          ? null
+          : _addressLine2Controller.text,
       city: _cityController.text,
-      province: _provinceController.text,
-      zipCode: _zipCodeController.text,
+      state: _stateController.text,
+      postalCode: _postalCodeController.text,
+      country: _countryController.text,
       isDefault: _isDefault,
     );
 
     try {
       final url = widget.address != null
-          ? 'https://buildmate-db.onrender.com/api/shipping-addresses/${widget.address!.id}'
-          : 'https://buildmate-db.onrender.com/api/shipping-addresses';
+          ? '/shipping-addresses/${widget.address!.id}'
+          : '/shipping-addresses';
+
+      final requestBody = {...address.toJson(), 'user_id': userId};
 
       final response = widget.address != null
-          ? await http.put(
-              Uri.parse(url),
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode({...address.toJson(), 'user_id': userId}),
-            )
-          : await http.post(
-              Uri.parse(url),
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode({...address.toJson(), 'user_id': userId}),
-            );
+          ? await ApiService().put(url, body: requestBody)
+          : await ApiService().post(url, body: requestBody);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.address != null
-                ? 'Address updated successfully'
-                : 'Address added successfully'),
-          ),
-        );
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.address != null
+                    ? 'Address updated successfully'
+                    : 'Address added successfully',
+              ),
+            ),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save address')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save address')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An error occurred')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('An error occurred')));
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -382,17 +425,30 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
             children: [
               _buildModernTextField('Full Name', _fullNameController),
               const SizedBox(height: 16),
-              _buildModernTextField('Phone Number', _phoneController,
-                  keyboardType: TextInputType.phone),
+              _buildModernTextField(
+                'Phone Number',
+                _phoneController,
+                keyboardType: TextInputType.phone,
+              ),
               const SizedBox(height: 16),
-              _buildModernTextField('Address', _addressController, maxLines: 3),
+              _buildModernTextField('Address Line 1', _addressLine1Controller),
+              const SizedBox(height: 16),
+              _buildModernTextField(
+                'Address Line 2 (Optional)',
+                _addressLine2Controller,
+              ),
               const SizedBox(height: 16),
               _buildModernTextField('City', _cityController),
               const SizedBox(height: 16),
-              _buildModernTextField('Province', _provinceController),
+              _buildModernTextField('State/Province', _stateController),
               const SizedBox(height: 16),
-              _buildModernTextField('ZIP Code', _zipCodeController,
-                  keyboardType: TextInputType.number),
+              _buildModernTextField(
+                'Postal Code',
+                _postalCodeController,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _buildModernTextField('Country', _countryController),
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
@@ -413,7 +469,10 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
                     setState(() => _isDefault = value ?? false);
                   },
                   activeColor: const Color(0xFF615EFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -431,7 +490,9 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          widget.address != null ? 'Update Address' : 'Save Address',
+                          widget.address != null
+                              ? 'Update Address'
+                              : 'Save Address',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -447,8 +508,12 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     );
   }
 
-  Widget _buildModernTextField(String label, TextEditingController controller,
-      {TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
+  Widget _buildModernTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -485,6 +550,10 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
           ),
           filled: true,
           fillColor: Colors.white,
+          floatingLabelStyle: const TextStyle(
+            color: Color(0xFF615EFC),
+            fontWeight: FontWeight.w600,
+          ),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {

@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../models/order_model.dart';
@@ -33,27 +33,26 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/orders/$userId'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      final response = await ApiService().get('/orders/$userId');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _orders = data.map((order) => Order.fromJson(order)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _orders = data.map((order) => Order.fromJson(order)).toList();
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -89,7 +88,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         backgroundColor: Colors.white,
         elevation: 2,
         iconTheme: const IconThemeData(color: Color(0xFF615EFC)),
-
       ),
       body: Column(
         children: [
@@ -171,9 +169,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             backgroundColor: isSelected
                 ? const Color(0xFF615EFC)
                 : Colors.white,
-            foregroundColor: isSelected
-                ? Colors.white
-                : Colors.grey,
+            foregroundColor: isSelected ? Colors.white : Colors.grey,
             elevation: isSelected ? 2 : 0,
             shadowColor: isSelected
                 ? Colors.grey.withOpacity(0.2)
@@ -223,9 +219,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    order != null
-                        ? 'Order #${order.id}'
-                        : 'Order #12345',
+                    order != null ? 'Order #${order.id}' : 'Order #12345',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -307,9 +301,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   void _navigateToOrderDetails(Order order) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => OrderDetailsScreen(order: order),
-      ),
+      MaterialPageRoute(builder: (context) => OrderDetailsScreen(order: order)),
     );
   }
 

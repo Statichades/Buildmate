@@ -1,12 +1,15 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/order_model.dart';
+import '../models/shipping_address_model.dart';
 import 'cart_screen.dart';
 import 'shipping_address_screen.dart';
 import 'order_confirmation_screen.dart';
+
+const String baseUrl = 'https://buildmate-db.onrender.com/api';
 
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -22,6 +25,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<ShippingAddress> _addresses = [];
   bool _isLoadingAddresses = true;
   bool _isPlacingOrder = false;
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -34,30 +38,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      setState(() => _isLoadingAddresses = false);
+      if (mounted) setState(() => _isLoadingAddresses = false);
       return;
     }
 
     try {
       final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/shipping-addresses/$userId'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/shipping-addresses?user_id=$userId'),
       );
-
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        final addresses = data.map((addr) => ShippingAddress.fromJson(addr)).toList();
-
-        setState(() {
-          _addresses = addresses;
-          _selectedAddress = addresses.isNotEmpty ? addresses.firstWhere((addr) => addr.isDefault, orElse: () => addresses.first) : null;
-          _isLoadingAddresses = false;
-        });
-      } else {
-        setState(() => _isLoadingAddresses = false);
+        final addresses = (json.decode(response.body) as List)
+            .map((addr) => ShippingAddress.fromJson(addr))
+            .toList();
+        if (mounted) {
+          setState(() {
+            _addresses = addresses;
+            _selectedAddress = _addresses.isNotEmpty
+                ? _addresses.firstWhere(
+                    (addr) => addr.isDefault,
+                    orElse: () => _addresses.first,
+                  )
+                : null;
+            _isLoadingAddresses = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _isLoadingAddresses = false);
+      if (mounted) setState(() => _isLoadingAddresses = false);
     }
   }
 
@@ -65,36 +72,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       .where((item) => item.isSelected)
       .fold(0, (sum, item) => sum + (double.parse(item.price) * item.quantity));
 
-  double get _shippingFee => _subtotal > 500 ? 0 : 50; // Free shipping over ₱500
+  double get _shippingFee =>
+      _subtotal > 500 ? 0 : 50; // Free shipping over ₱500
   double get _total => _subtotal + _shippingFee;
 
   Future<void> _placeOrder() async {
     if (_selectedAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a shipping address')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a shipping address')),
+        );
       return;
     }
 
-    setState(() => _isPlacingOrder = true);
+    if (mounted) setState(() => _isPlacingOrder = true);
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      setState(() => _isPlacingOrder = false);
+      if (mounted) setState(() => _isPlacingOrder = false);
       return;
     }
 
     final orderItems = widget.cartItems
         .where((item) => item.isSelected)
-        .map((item) => OrderItem(
-              productId: item.productId,
-              name: item.name,
-              price: double.parse(item.price),
-              imageUrl: item.imageUrl,
-              quantity: item.quantity,
-            ))
+        .map(
+          (item) => OrderItem(
+            productId: item.productId,
+            name: item.name,
+            price: double.parse(item.price),
+            imageUrl: item.imageUrl,
+            quantity: item.quantity,
+          ),
+        )
         .toList();
 
     final orderData = {
@@ -109,35 +120,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://buildmate-db.onrender.com/api/orders'),
+        Uri.parse('$baseUrl/orders'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(orderData),
       );
 
-      if (response.statusCode == 201) {
-        final orderData = json.decode(response.body);
-        final order = Order.fromJson(orderData);
+      if (mounted) {
+        if (response.statusCode == 201) {
+          final orderData = json.decode(response.body);
+          final order = Order.fromJson(orderData);
 
-        // Clear selected cart items
-        await _clearCartItems();
+          // Clear selected cart items
+          await _clearCartItems();
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OrderConfirmationScreen(order: order),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to place order')),
-        );
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OrderConfirmationScreen(order: order),
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to place order')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An error occurred')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('An error occurred')));
     } finally {
-      setState(() => _isPlacingOrder = false);
+      if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
@@ -147,13 +163,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (userId == null) return;
 
-    final selectedItems = widget.cartItems.where((item) => item.isSelected).toList();
+    final selectedItems = widget.cartItems
+        .where((item) => item.isSelected)
+        .toList();
 
     for (var item in selectedItems) {
       try {
-        await http.delete(
-          Uri.parse('https://buildmate-db.onrender.com/cart/$userId/${item.productId}'),
-        );
+        await http.delete(Uri.parse('$baseUrl/cart/$userId/${item.productId}'));
       } catch (e) {
         // Continue with other items even if one fails
       }
@@ -284,16 +300,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: Colors.grey[200],
-                        child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Colors.grey,
+                        ),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: Colors.grey[200],
-                        child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Colors.grey,
+                        ),
                       ),
                     )
                   : Container(
                       color: Colors.grey[200],
-                      child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+                      child: const Icon(
+                        Icons.inventory_2_outlined,
+                        color: Colors.grey,
+                      ),
                     ),
             ),
           ),
@@ -314,7 +339,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF615EFC).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -344,10 +372,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               Text(
                 '₱${item.price} each',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ],
           ),
@@ -453,11 +478,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.phone,
-                        color: Colors.grey,
-                        size: 16,
-                      ),
+                      const Icon(Icons.phone, color: Colors.grey, size: 16),
                       const SizedBox(width: 8),
                       Text(
                         _selectedAddress!.phone,
@@ -477,8 +498,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${_selectedAddress!.address}\n'
-                          '${_selectedAddress!.city}, ${_selectedAddress!.province} ${_selectedAddress!.zipCode}',
+                          '${_selectedAddress!.addressLine1}${_selectedAddress!.addressLine2 != null ? '\n${_selectedAddress!.addressLine2}' : ''}\n'
+                          '${_selectedAddress!.city}, ${_selectedAddress!.state} ${_selectedAddress!.postalCode}',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       ),
@@ -598,16 +619,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       SizedBox(height: 2),
                       Text(
                         'Pay when you receive your order',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF615EFC),
                     borderRadius: BorderRadius.circular(20),
@@ -682,13 +703,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             child: Column(
               children: [
-                _buildSummaryRow('Subtotal', '₱${_subtotal.toStringAsFixed(2)}'),
+                _buildSummaryRow(
+                  'Subtotal',
+                  '₱${_subtotal.toStringAsFixed(2)}',
+                ),
                 const SizedBox(height: 12),
-                _buildSummaryRow('Shipping Fee', '₱${_shippingFee.toStringAsFixed(2)}'),
+                _buildSummaryRow(
+                  'Shipping Fee',
+                  '₱${_shippingFee.toStringAsFixed(2)}',
+                ),
                 const SizedBox(height: 16),
                 const Divider(color: Colors.grey),
                 const SizedBox(height: 16),
-                _buildSummaryRow('Total', '₱${_total.toStringAsFixed(2)}', isTotal: true),
+                _buildSummaryRow(
+                  'Total',
+                  '₱${_total.toStringAsFixed(2)}',
+                  isTotal: true,
+                ),
               ],
             ),
           ),
@@ -848,10 +879,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               const Text(
                 'Select Shipping Address',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               if (_addresses.isEmpty)
@@ -907,7 +935,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF615EFC).withOpacity(0.1) : Colors.grey[50],
+          color: isSelected
+              ? const Color(0xFF615EFC).withOpacity(0.1)
+              : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? const Color(0xFF615EFC) : Colors.transparent,
@@ -926,17 +956,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${address.address}, ${address.city}',
+                    '${address.addressLine1}${address.addressLine2 != null ? ', ${address.addressLine2}' : ''}, ${address.city}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(
-                Icons.check_circle,
-                color: Color(0xFF615EFC),
-              ),
+              const Icon(Icons.check_circle, color: Color(0xFF615EFC)),
           ],
         ),
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/order_model.dart';
-import 'order_details_screen.dart';
 import 'dashboard_screen.dart';
+import 'order_details_screen.dart';
 
 class OrderConfirmationScreen extends StatelessWidget {
   final Order order;
@@ -70,10 +70,7 @@ class OrderConfirmationScreen extends StatelessWidget {
               SizedBox(height: 16),
               Text(
                 'Your order #${order.id} has been placed successfully',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 32),
@@ -95,7 +92,10 @@ class OrderConfirmationScreen extends StatelessWidget {
                   children: [
                     _buildInfoRow('Order Number', '#${order.id}'),
                     const Divider(),
-                    _buildInfoRow('Total Amount', '₱${order.total.toStringAsFixed(2)}'),
+                    _buildInfoRow(
+                      'Total Amount',
+                      '₱${order.total.toStringAsFixed(2)}',
+                    ),
                     const Divider(),
                     _buildInfoRow('Payment Method', 'Cash on Delivery'),
                     const Divider(),
@@ -106,10 +106,7 @@ class OrderConfirmationScreen extends StatelessWidget {
               SizedBox(height: 32),
               Text(
                 'You will receive an email confirmation shortly.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               Spacer(),
@@ -126,7 +123,9 @@ class OrderConfirmationScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const DashboardScreen(),
+                      ),
                       (route) => false,
                     );
                   },
@@ -181,19 +180,10 @@ class OrderConfirmationScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ],
       ),

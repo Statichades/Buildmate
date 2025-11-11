@@ -2,10 +2,8 @@ import 'package:buildmate/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:buildmate/screens/signup_screen.dart';
 import 'package:buildmate/screens/email_verification_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:buildmate/services/auth_service.dart';
 import 'package:buildmate/utils/toast_util.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,30 +31,23 @@ class _LoginScreenState extends State<LoginScreen> {
     // check if the users and password is correct and is in the database
     // basta mao nana maam
     try {
-      final response = await http
-          .post(
-            Uri.parse('https://buildmate-db.onrender.com/api/users/login'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({'email': email, 'password': password}),
-          )
-          .timeout(const Duration(seconds: 15));
+      final authService = AuthService();
+      final user = await authService.login(email, password);
+      debugPrint('User: $user');
+      debugPrint('User Email: $email');
+      debugPrint('User password: $password');
 
-      final responseBody = json.decode(response.body);
-
-      if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('user_id', responseBody['id']);
-        await prefs.setString('name', responseBody['name']);
-        await prefs.setString('email', responseBody['email']);
-        await prefs.setBool('email_verified', responseBody['email_verified'] == 1);
-        await prefs.setBool('isLoggedIn', true);
-
-        if (responseBody['email_verified'] != 1) {
-          showModernToast(message: 'Please verify your email before logging in');
+      if (user != null) {
+        if (!user.emailVerified) {
+          showModernToast(
+            message: 'Please verify your email before logging in',
+          );
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => EmailVerificationScreen(email: responseBody['email'])),
+              MaterialPageRoute(
+                builder: (_) => EmailVerificationScreen(email: user.email),
+              ),
             );
           }
         } else {
@@ -70,8 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        final errorMessage = responseBody['error'] ?? 'Invalid credentials';
-        showModernToast(message: errorMessage);
+        showModernToast(message: 'Invalid credentials');
       }
     } catch (e) {
       showModernToast(message: 'An error occurred: $e');
@@ -109,41 +99,102 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: size.height * 0.05),
-                    TextFormField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: "Email",
-                        prefixIcon: const Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF615EFC)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 16,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: "Email",
+                          labelStyle: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.email_outlined,
+                            color: const Color(0xFF615EFC),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                            horizontal: 20,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          floatingLabelStyle: const TextStyle(
+                            color: Color(0xFF615EFC),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF615EFC)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 16,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextFormField(
+                        controller: passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          labelStyle: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.lock_outline,
+                            color: const Color(0xFF615EFC),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF615EFC),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                            horizontal: 20,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          floatingLabelStyle: const TextStyle(
+                            color: Color(0xFF615EFC),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:buildmate/widgets/product_card.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:buildmate/widgets/product_card.dart';
+import 'package:buildmate/services/api_service.dart';
 import 'dart:async';
 import '../models/product_model.dart' as product_model;
 import 'categories_screen.dart';
@@ -25,12 +25,18 @@ class DashboardScreen extends StatefulWidget {
 class DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomeContent(),
-    const CategoriesScreen(),
-    const CartScreen(),
-    const ProfileScreen(),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      const HomeContent(),
+      const CategoriesScreen(),
+      const CartScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -42,10 +48,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -107,6 +110,7 @@ class _HomeContentState extends State<HomeContent> {
   int currentBatch = 0;
   final int batchSize = 10;
   final ScrollController _scrollController = ScrollController();
+  bool _isOnline = true;
   final carouselImages = [
     "assets/images/logo.png",
     "assets/images/logo.png",
@@ -118,6 +122,38 @@ class _HomeContentState extends State<HomeContent> {
     super.initState();
     _fetchProducts();
     _scrollController.addListener(_onScroll);
+
+    // Force refresh products when navigating back to dashboard (e.g., after login)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshProductsIfNeeded();
+      // Additional check after a longer delay to handle slow login processing
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          _refreshProductsIfNeeded();
+        }
+      });
+      // Additional check after login completion
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _refreshProductsIfNeeded();
+        }
+      });
+    });
+  }
+
+  Future<void> _refreshProductsIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    // If user just logged in and products are empty, force refresh
+    if (isLoggedIn && products.isEmpty && !isLoading) {
+      // Small delay to ensure login is fully processed
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted && products.isEmpty) {
+        debugPrint('Dashboard: Refreshing products after login');
+        await _fetchProducts();
+      }
+    }
   }
 
   @override
@@ -127,54 +163,65 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
       _loadMoreProducts();
     }
   }
 
   Future<void> _fetchProducts() async {
-    final url = Uri.parse('https://buildmate-db.onrender.com/api/products');
-    final client = http.Client();
-
+    debugPrint('Dashboard: Fetching products...');
     try {
-      final response = await client
-          .get(url)
-          .timeout(const Duration(seconds: 15));
+      final response = await ApiService().get('/products');
       if (response.statusCode == 200) {
-        List<dynamic> productJson = json.decode(response.body);
+        final productList = (json.decode(response.body) as List)
+            .map((p) => product_model.Product.fromJson(p))
+            .toList();
+        debugPrint('Dashboard: Fetched ${productList.length} products');
         if (mounted) {
           setState(() {
-            products = productJson
-                .map((json) => product_model.Product.fromJson(json))
-                .toList();
+            products = productList;
             _loadInitialBatch();
             isLoading = false;
           });
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            error = 'Failed to load products: ${response.statusCode}';
-            isLoading = false;
-          });
-        }
-      }
-    } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          error = 'Request timed out. Please check your internet connection.';
-          isLoading = false;
-        });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          error = 'Error fetching products: $e';
-          isLoading = false;
-        });
+      debugPrint('Dashboard: Initial fetch failed: $e');
+      // Retry multiple times with increasing delays
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        await Future.delayed(Duration(seconds: attempt));
+        if (mounted) {
+          try {
+            final response = await ApiService().get('/products');
+            if (response.statusCode == 200) {
+              final productList = (json.decode(response.body) as List)
+                  .map((p) => product_model.Product.fromJson(p))
+                  .toList();
+              debugPrint(
+                'Dashboard: Retry $attempt successful, fetched ${productList.length} products',
+              );
+              setState(() {
+                products = productList;
+                _loadInitialBatch();
+                isLoading = false;
+              });
+              return; // Success, exit retry loop
+            }
+          } catch (e2) {
+            debugPrint('Dashboard: Retry $attempt failed: $e2');
+            if (attempt == 3) {
+              // Final attempt failed
+              setState(() {
+                error = 'Error fetching products: $e2';
+                isLoading = false;
+              });
+            }
+          }
+        } else {
+          return; // Widget disposed
+        }
       }
-    } finally {
-      client.close();
     }
   }
 
@@ -201,8 +248,6 @@ class _HomeContentState extends State<HomeContent> {
       }
     });
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -281,53 +326,59 @@ class _HomeContentState extends State<HomeContent> {
               final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
               if (!isLoggedIn) {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    title: Row(
-                      children: const [
-                        Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
-                        SizedBox(width: 8),
-                        Text('Login required'),
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      title: Row(
+                        children: const [
+                          Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
+                          SizedBox(width: 8),
+                          Text('Login required'),
+                        ],
+                      ),
+                      content: const Text(
+                        'You need to login to view product details or buy products.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            if (mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(color: Color(0xFF615EFC)),
+                          ),
+                        ),
                       ],
                     ),
-                    content: const Text(
-                      'You need to login to view product details or buy products.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(color: Color(0xFF615EFC)),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                  );
+                }
               } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ProductDetailsScreen(product: product),
-                  ),
-                );
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailsScreen(product: product),
+                    ),
+                  );
+                }
               }
             },
           );
@@ -363,12 +414,15 @@ class _HomeContentState extends State<HomeContent> {
                 child: TextField(
                   readOnly: true,
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SearchScreen(allProducts: products),
-                      ),
-                    );
+                    if (mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SearchScreen(allProducts: products),
+                        ),
+                      );
+                    }
                   },
                   decoration: const InputDecoration(
                     hintText: "Search products",
@@ -378,8 +432,7 @@ class _HomeContentState extends State<HomeContent> {
                 ),
               ),
               Skeletonizer(
-                enabled:
-                    (isLoading || error.isNotEmpty) && products.isEmpty,
+                enabled: (isLoading || error.isNotEmpty) && products.isEmpty,
                 effect: const ShimmerEffect(
                   baseColor: Color(0xFFE0E0E0),
                   highlightColor: Color(0xFFF5F5F5),
@@ -426,7 +479,6 @@ class _HomeContentState extends State<HomeContent> {
                                 width: double.infinity,
                               ),
                             ),
-
                           ],
                         ),
                       );
@@ -440,10 +492,7 @@ class _HomeContentState extends State<HomeContent> {
                 children: [
                   const Text(
                     "Products",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   TextButton(
                     onPressed: () {},
@@ -458,8 +507,7 @@ class _HomeContentState extends State<HomeContent> {
                 ],
               ),
               Skeletonizer(
-                enabled:
-                    (isLoading || error.isNotEmpty) && products.isEmpty,
+                enabled: (isLoading || error.isNotEmpty) && products.isEmpty,
                 effect: const ShimmerEffect(
                   baseColor: Color(0xFFE0E0E0),
                   highlightColor: Color(0xFFF5F5F5),
@@ -471,9 +519,7 @@ class _HomeContentState extends State<HomeContent> {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF615EFC),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFF615EFC)),
                   ),
                 ),
             ],

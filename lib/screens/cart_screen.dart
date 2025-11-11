@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'checkout_screen.dart';
+import '../utils/connectivity_service.dart';
 
 class CartItem {
+  final int id;
   final int productId;
   final String name;
   final String price;
@@ -14,6 +17,7 @@ class CartItem {
   bool isSelected;
 
   CartItem({
+    required this.id,
     required this.productId,
     required this.name,
     required this.price,
@@ -24,6 +28,7 @@ class CartItem {
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
+      id: json['id'],
       productId: json['product_id'],
       name: json['name'],
       price: json['price'],
@@ -43,51 +48,69 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
+  late ConnectivityService _connectivityService;
+  // ignore: unused_field
+  bool _isOnline = true;
 
   @override
   void initState() {
     super.initState();
+    _connectivityService = ConnectivityService();
+    _connectivityService.connectionStatus.listen((isOnline) {
+      if (mounted) {
+        setState(() => _isOnline = isOnline);
+      }
+    });
     _fetchCartItems();
   }
 
   Future<void> _deleteCartItem(CartItem item) async {
+    // Optimistically remove from UI first
+    final itemIndex = _cartItems.indexOf(item);
+    setState(() {
+      _cartItems.remove(item);
+    });
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('user_id');
 
       if (userId == null) {
-        print("Delete failed: User ID is null.");
+        // Revert on error
+        if (mounted)
+          setState(() {
+            _cartItems.insert(itemIndex, item);
+          });
         return;
       }
 
-      final url = Uri.parse(
-        'https://buildmate-db.onrender.com/api/cart/$userId/${item.productId}',
+      final response = await ApiService().delete(
+        '/cart/$userId/${item.productId}',
       );
-      print("Attempting to delete from URL: $url");
 
-      final response = await http.delete(url);
-
-      print("Delete response status code: ${response.statusCode}");
-      print("Delete response body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _cartItems.remove(item);
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to delete item. Check console for details."),
-          ),
-        );
+      if (response.statusCode != 200) {
+        // Revert on server error
+        if (mounted)
+          setState(() {
+            _cartItems.insert(itemIndex, item);
+          });
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to delete item.")),
+          );
       }
     } catch (e) {
-      print("An error occurred during deletion: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("An error occurred. Check console for details."),
-        ),
-      );
+      // Revert on network error
+      if (mounted)
+        setState(() {
+          _cartItems.insert(itemIndex, item);
+        });
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("An error occurred while deleting item."),
+          ),
+        );
     }
   }
 
@@ -103,35 +126,84 @@ class _CartScreenState extends State<CartScreen> {
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          _isLoading = false;
+        });
       return;
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/cart/$userId'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
+      final response = await ApiService().get('/cart/$userId');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _cartItems = data.map((item) => CartItem.fromJson(item)).toList();
-          _isLoading = false;
-        });
+        final cartItems = data.map((json) => CartItem.fromJson(json)).toList();
+        if (mounted) {
+          setState(() {
+            _cartItems = cartItems;
+            _isLoading = false;
+          });
+        }
       } else {
-        debugPrint('Failed to fetch cart: ${response.statusCode}');
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted)
+          setState(() {
+            _isLoading = false;
+          });
       }
     } catch (e) {
       debugPrint('Error fetching cart: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          _isLoading = false;
+        });
+    }
+  }
+
+  Future<void> _refreshCartItems() async {
+    await _fetchCartItems();
+  }
+
+  Future<void> _updateCartQuantity(CartItem item, int quantity) async {
+    // Optimistically update UI first
+    final oldQuantity = item.quantity;
+    setState(() {
+      item.quantity = quantity;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id');
+      if (userId != null) {
+        final response = await ApiService().put(
+          '/cart/$userId/${item.productId}',
+          body: {'quantity': quantity},
+        );
+        if (response.statusCode != 200) {
+          // Revert on error
+          if (mounted)
+            setState(() {
+              item.quantity = oldQuantity;
+            });
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("An error occurred while updating quantity."),
+              ),
+            );
+        }
+      }
+    } catch (e) {
+      // Revert on error
+      if (mounted)
+        setState(() {
+          item.quantity = oldQuantity;
+        });
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("An error occurred while updating quantity."),
+          ),
+        );
     }
   }
 
@@ -142,17 +214,15 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void increment(int index) {
-    setState(() {
-      _cartItems[index].quantity++;
-    });
+    final newQuantity = _cartItems[index].quantity + 1;
+    _updateCartQuantity(_cartItems[index], newQuantity);
   }
 
   void decrement(int index) {
-    setState(() {
-      if (_cartItems[index].quantity > 1) {
-        _cartItems[index].quantity--;
-      }
-    });
+    if (_cartItems[index].quantity > 1) {
+      final newQuantity = _cartItems[index].quantity - 1;
+      _updateCartQuantity(_cartItems[index], newQuantity);
+    }
   }
 
   bool get hasSelected => _cartItems.any((item) => item.isSelected);
@@ -190,51 +260,54 @@ class _CartScreenState extends State<CartScreen> {
             ),
         ],
       ),
-      body: _cartItems.isEmpty && !_isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: _refreshCartItems,
+        child: _cartItems.isEmpty && !_isLoading
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      "Your cart is empty",
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
                 children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 80,
-                    color: Colors.grey,
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 8,
+                      ),
+                      itemCount: _isLoading ? 6 : _cartItems.length,
+                      itemBuilder: (context, index) {
+                        final item = _isLoading
+                            ? CartItem(
+                                id: 0,
+                                productId: 0,
+                                name: 'Product Name',
+                                price: '0.00',
+                                quantity: 1,
+                              )
+                            : _cartItems[index];
+                        return _buildCartItemCard(item, index);
+                      },
+                    ),
                   ),
-                  SizedBox(height: 20),
-                  Text(
-                    "Your cart is empty",
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
+                  if (!_isLoading && _cartItems.isNotEmpty)
+                    _buildCheckoutSection(),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 8,
-                    ),
-                    itemCount: _isLoading ? 6 : _cartItems.length,
-                    itemBuilder: (context, index) {
-                      final item = _isLoading
-                          ? CartItem(
-                              productId: 0,
-                              name: 'Product Name',
-                              price: '0.00',
-                              quantity: 1,
-                              isSelected: false,
-                            )
-                          : _cartItems[index];
-                      return _buildCartItemCard(item, index);
-                    },
-                  ),
-                ),
-                if (!_isLoading && _cartItems.isNotEmpty)
-                  _buildCheckoutSection(),
-              ],
-            ),
+      ),
     );
   }
 
@@ -395,12 +468,28 @@ class _CartScreenState extends State<CartScreen> {
             ),
             onPressed: _cartItems.isNotEmpty
                 ? () {
-                    final selectedItems = _cartItems.where((item) => item.isSelected).toList();
+                    final selectedItems = _cartItems
+                        .where((item) => item.isSelected)
+                        .toList();
                     if (selectedItems.isNotEmpty) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CheckoutScreen(cartItems: selectedItems),
+                          builder: (context) => CheckoutScreen(
+                            cartItems: selectedItems
+                                .map(
+                                  (item) => CartItem(
+                                    id: item.id,
+                                    productId: item.productId,
+                                    name: item.name,
+                                    price: item.price,
+                                    imageUrl: item.imageUrl,
+                                    quantity: item.quantity,
+                                    isSelected: item.isSelected,
+                                  ),
+                                )
+                                .toList(),
+                          ),
                         ),
                       );
                     } else {
@@ -437,5 +526,11 @@ class _CartScreenState extends State<CartScreen> {
       ),
       child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
     );
+  }
+
+  @override
+  void dispose() {
+    _connectivityService.dispose();
+    super.dispose();
   }
 }

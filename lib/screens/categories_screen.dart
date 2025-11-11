@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'products_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
+import 'package:buildmate/services/api_service.dart';
 import 'dart:convert';
 
 class CategoriesScreen extends StatefulWidget {
@@ -42,10 +42,7 @@ class CategoriesScreenState extends State<CategoriesScreen> {
 
   Future<void> _fetchCategories() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/categories'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      final response = await ApiService().get('/categories');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -126,7 +123,10 @@ class CategoriesScreenState extends State<CategoriesScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(isGrid ? Icons.view_list : Icons.grid_view, color: Color(0xFF615EFC)),
+            icon: Icon(
+              isGrid ? Icons.view_list : Icons.grid_view,
+              color: Color(0xFF615EFC),
+            ),
             onPressed: () {
               setState(() {
                 isGrid = !isGrid;

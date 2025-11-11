@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:buildmate/utils/toast_util.dart';
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_model.dart';
 import 'checkout_screen.dart';
@@ -34,13 +34,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _quantityAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _quantityAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    _quantityAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(
+        parent: _quantityAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   @override
@@ -51,10 +50,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
   Future<bool> _isItemInCart(int userId, int productId) async {
     try {
-      final response = await http.get(
-        Uri.parse('https://buildmate-db.onrender.com/api/cart/$userId'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      final response = await ApiService().get('/cart/$userId');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -76,7 +72,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       return;
     }
 
-    // Check if item is already in cart
+    // Check if item is already in cart (both cache and API)
     bool alreadyInCart = await _isItemInCart(userId, widget.product.id);
     if (alreadyInCart) {
       showModernToast(message: 'This item is already in your cart');
@@ -85,17 +81,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
     setState(() => isAddingToCart = true);
 
-    final url = Uri.parse('https://buildmate-db.onrender.com/api/cart');
-
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
+      final response = await ApiService().post(
+        '/cart',
+        body: {
           'user_id': userId,
           'product_id': widget.product.id,
           'quantity': quantity,
-        }),
+        },
       );
 
       if (response.statusCode == 201) {
@@ -104,22 +97,24 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           Navigator.pop(context);
         }
       } else {
-        final responseBody = json.decode(response.body);
-        String errorMessage = 'Failed to add to cart';
+        if (mounted) {
+          final responseBody = json.decode(response.body);
+          String errorMessage = 'Failed to add to cart';
 
-        if (responseBody['error'] != null) {
-          final error = responseBody['error'].toString().toLowerCase();
-          if (error.contains('already') || error.contains('exists')) {
-            errorMessage = 'This item is already in your cart';
-          } else {
-            errorMessage = 'Failed to add to cart: ${responseBody['error']}';
+          if (responseBody['error'] != null) {
+            final error = responseBody['error'].toString().toLowerCase();
+            if (error.contains('already') || error.contains('exists')) {
+              errorMessage = 'This item is already in your cart';
+            } else {
+              errorMessage = 'Failed to add to cart: ${responseBody['error']}';
+            }
           }
-        }
 
-        showModernToast(message: errorMessage);
+          showModernToast(message: errorMessage);
+        }
       }
     } catch (e) {
-      showModernToast(message: 'An error occurred: $e');
+      showModernToast(message: 'An error occurred while adding to cart');
     } finally {
       if (mounted) {
         setState(() => isAddingToCart = false);
@@ -129,7 +124,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
   void _toggleFavorite() {
     setState(() => isFavorite = !isFavorite);
-    showModernToast(message: isFavorite ? 'Added to favorites!' : 'Removed from favorites!');
+    showModernToast(
+      message: isFavorite ? 'Added to favorites!' : 'Removed from favorites!',
+    );
   }
 
   void _animateQuantityChange() {
@@ -149,9 +146,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               imageUrl: widget.product.imageUrl,
               fit: BoxFit.cover,
               placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF615EFC),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF615EFC)),
               ),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
@@ -183,7 +178,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               children: [
                 // Top bar with close and favorite buttons
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -198,7 +196,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                       IconButton(
                         icon: Icon(
                           isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? Colors.red : const Color(0xFF615EFC),
+                          color: isFavorite
+                              ? Colors.red
+                              : const Color(0xFF615EFC),
                           size: 28,
                         ),
                         onPressed: _toggleFavorite,
@@ -276,7 +276,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: widget.product.stock > 0
                                   ? Colors.green.withOpacity(0.1)
@@ -288,7 +291,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   ? "In Stock"
                                   : "Out of Stock",
                               style: TextStyle(
-                                color: widget.product.stock > 0 ? Colors.green : Colors.red,
+                                color: widget.product.stock > 0
+                                    ? Colors.green
+                                    : Colors.red,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -325,7 +330,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                       onPressed: () => Navigator.pop(ctx),
                                       child: const Text(
                                         'Close',
-                                        style: TextStyle(color: Color(0xFF615EFC)),
+                                        style: TextStyle(
+                                          color: Color(0xFF615EFC),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -342,7 +349,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 SizedBox(width: 4),
                                 Text(
                                   "View Details",
-                                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ],
                             ),
@@ -356,17 +366,26 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                           title: "Description",
                           content: widget.product.description!,
                           isExpanded: isDescriptionExpanded,
-                          onToggle: () => setState(() => isDescriptionExpanded = !isDescriptionExpanded),
+                          onToggle: () => setState(
+                            () =>
+                                isDescriptionExpanded = !isDescriptionExpanded,
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],
                       // Specifications section
-                      if (widget.product.specifications != null && widget.product.specifications!.isNotEmpty) ...[
+                      if (widget.product.specifications != null &&
+                          widget.product.specifications!.isNotEmpty) ...[
                         _buildExpandableSection(
                           title: "Specifications",
-                          content: widget.product.specifications!.map((spec) => "• $spec").join('\n'),
+                          content: widget.product.specifications!
+                              .map((spec) => "• $spec")
+                              .join('\n'),
                           isExpanded: isSpecificationsExpanded,
-                          onToggle: () => setState(() => isSpecificationsExpanded = !isSpecificationsExpanded),
+                          onToggle: () => setState(
+                            () => isSpecificationsExpanded =
+                                !isSpecificationsExpanded,
+                          ),
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -397,9 +416,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   child: Container(
                                     width: 50,
                                     alignment: Alignment.center,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey[300]!),
+                                      border: Border.all(
+                                        color: Colors.grey[300]!,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                       color: Colors.grey[50],
                                     ),
@@ -420,7 +443,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   _animateQuantityChange();
                                 } else {
                                   showModernToast(
-                                    message: 'Cannot add more than available stock',
+                                    message:
+                                        'Cannot add more than available stock',
                                   );
                                 }
                               }),
@@ -436,24 +460,32 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF615EFC),
-                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 18,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 elevation: 8,
-                                shadowColor: const Color(0xFF615EFC).withOpacity(0.3),
+                                shadowColor: const Color(
+                                  0xFF615EFC,
+                                ).withOpacity(0.3),
                               ),
                               onPressed: () async {
-                                final prefs = await SharedPreferences.getInstance();
+                                final prefs =
+                                    await SharedPreferences.getInstance();
                                 final userId = prefs.getInt('user_id');
 
                                 if (userId == null) {
-                                  showModernToast(message: 'Please log in to buy products');
+                                  showModernToast(
+                                    message: 'Please log in to buy products',
+                                  );
                                   return;
                                 }
 
                                 // Create a cart item from the current product
                                 final cartItem = CartItem(
+                                  id: 0,
                                   productId: widget.product.id,
                                   name: widget.product.name,
                                   price: widget.product.price.toString(),
@@ -467,7 +499,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => CheckoutScreen(cartItems: [cartItem]),
+                                      builder: (context) =>
+                                          CheckoutScreen(cartItems: [cartItem]),
                                     ),
                                   );
                                 }
@@ -491,7 +524,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   color: Color(0xFF615EFC),
                                   width: 2,
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 18,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -503,7 +538,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF615EFC)),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Color(0xFF615EFC),
+                                            ),
                                       ),
                                     )
                                   : const Text(
@@ -576,7 +614,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                     ),
                   ),
                   Icon(
-                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     color: const Color(0xFF615EFC),
                     size: 24,
                   ),

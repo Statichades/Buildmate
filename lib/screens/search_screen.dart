@@ -1,6 +1,6 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:buildmate/services/api_service.dart';
 import 'package:buildmate/models/product_model.dart' as product_model;
 import 'package:buildmate/widgets/product_card.dart';
 import 'package:buildmate/screens/product_details_screen.dart';
@@ -37,7 +37,9 @@ class _SearchScreenState extends State<SearchScreen> {
   void _initializeFilters() {
     _filteredProducts = widget.allProducts;
     if (widget.allProducts.isNotEmpty) {
-      final max = widget.allProducts.map((p) => p.price).reduce((a, b) => a > b ? a : b);
+      final max = widget.allProducts
+          .map((p) => p.price)
+          .reduce((a, b) => a > b ? a : b);
       _maxPrice = max > 0 ? max : 5000;
       _currentRangeValues = RangeValues(0, _maxPrice);
     }
@@ -46,12 +48,14 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _fetchCategories() async {
     try {
-      final response = await http.get(Uri.parse('https://buildmate-db.onrender.com/api/categories'));
+      final response = await ApiService().get('/categories');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         if (mounted) {
           setState(() {
-            _categories = List<Map<String, dynamic>>.from(data.map((item) => {'id': item['id'], 'name': item['name']}));
+            _categories = List<Map<String, dynamic>>.from(
+              data.map((item) => {'id': item['id'], 'name': item['name']}),
+            );
           });
         }
       }
@@ -73,18 +77,22 @@ class _SearchScreenState extends State<SearchScreen> {
       List<product_model.Product> products = widget.allProducts;
       final query = _searchController.text.toLowerCase();
 
-
       if (query.isNotEmpty) {
-        products = products.where((product) => product.name.toLowerCase().contains(query)).toList();
+        products = products
+            .where((product) => product.name.toLowerCase().contains(query))
+            .toList();
       }
 
       if (_selectedCategory != null) {
-        products = products.where((product) => product.categoryName == _selectedCategory).toList();
+        products = products
+            .where((product) => product.categoryName == _selectedCategory)
+            .toList();
       }
 
       if (_currentRangeValues != null) {
         products = products.where((product) {
-          return product.price >= _currentRangeValues!.start && product.price <= _currentRangeValues!.end;
+          return product.price >= _currentRangeValues!.start &&
+              product.price <= _currentRangeValues!.end;
         }).toList();
       }
 
@@ -115,7 +123,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Filters", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const Text(
+                        "Filters",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       TextButton(
                         onPressed: () {
                           setModalState(() {
@@ -124,12 +138,18 @@ class _SearchScreenState extends State<SearchScreen> {
                             _inStockOnly = false;
                           });
                         },
-                        child: const Text("Reset", style: TextStyle(color: Color(0xFF615EFC))), 
-                      )
+                        child: const Text(
+                          "Reset",
+                          style: TextStyle(color: Color(0xFF615EFC)),
+                        ),
+                      ),
                     ],
                   ),
-                  
-                  const Text("Category", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+
+                  const Text(
+                    "Category",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                   Wrap(
                     spacing: 8.0,
                     children: _categories.map((category) {
@@ -139,17 +159,33 @@ class _SearchScreenState extends State<SearchScreen> {
                         selected: isSelected,
                         onSelected: (selected) {
                           setModalState(() {
-                            _selectedCategory = selected ? category['name'] : null;
+                            _selectedCategory = selected
+                                ? category['name']
+                                : null;
                           });
                         },
                         selectedColor: const Color(0xFF615EFC).withOpacity(0.2),
-                        labelStyle: TextStyle(color: isSelected ? const Color(0xFF615EFC) : Colors.black),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isSelected ? const Color(0xFF615EFC) : Colors.grey[300]!)),
+                        labelStyle: TextStyle(
+                          color: isSelected
+                              ? const Color(0xFF615EFC)
+                              : Colors.black,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: isSelected
+                                ? const Color(0xFF615EFC)
+                                : Colors.grey[300]!,
+                          ),
+                        ),
                       );
                     }).toList(),
                   ),
 
-                  const Text("Price Range", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text(
+                    "Price Range",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                   RangeSlider(
                     values: _currentRangeValues ?? RangeValues(0, _maxPrice),
                     min: 0,
@@ -168,7 +204,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
 
                   SwitchListTile(
-                    title: const Text("In Stock Only", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    title: const Text(
+                      "In Stock Only",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     value: _inStockOnly,
                     onChanged: (bool value) {
                       setModalState(() {
@@ -183,13 +225,22 @@ class _SearchScreenState extends State<SearchScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF615EFC),
                       minimumSize: const Size.fromHeight(55),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () {
                       _filterProducts();
                       Navigator.pop(context);
                     },
-                    child: const Text("Apply Filters", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: const Text(
+                      "Apply Filters",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -223,11 +274,22 @@ class _SearchScreenState extends State<SearchScreen> {
               hintText: "Search products...",
               hintStyle: TextStyle(color: Colors.grey.shade600),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 22),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              prefixIcon: Icon(
+                Icons.search,
+                color: Colors.grey.shade600,
+                size: 22,
+              ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey.shade600, size: 20),
+                      icon: Icon(
+                        Icons.clear,
+                        color: Colors.grey.shade600,
+                        size: 20,
+                      ),
                       onPressed: () => _searchController.clear(),
                     )
                   : null,
@@ -290,7 +352,10 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           title: Row(
                             children: const [
-                              Icon(Icons.lock_outline, color: Color(0xFF615EFC)),
+                              Icon(
+                                Icons.lock_outline,
+                                color: Color(0xFF615EFC),
+                              ),
                               SizedBox(width: 8),
                               Text('Login required'),
                             ],
@@ -306,12 +371,14 @@ class _SearchScreenState extends State<SearchScreen> {
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(ctx);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const LoginScreen(),
-                                  ),
-                                );
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
+                                  );
+                                }
                               },
                               child: const Text(
                                 'Login',
@@ -322,12 +389,15 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       );
                     } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProductDetailsScreen(product: product),
-                        ),
-                      );
+                      if (mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ProductDetailsScreen(product: product),
+                          ),
+                        );
+                      }
                     }
                   },
                 );
