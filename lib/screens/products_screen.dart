@@ -124,11 +124,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
           price: product.price.toString(),
           stock: product.stock,
           categoryName: product.categoryName,
-          onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+              final userId = prefs.getInt('user_id');
 
-            if (!isLoggedIn) {
+              if (!isLoggedIn || userId == null) {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(

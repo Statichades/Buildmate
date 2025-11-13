@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 Widget horizontalCategoriesPreview(List<Map<String, dynamic>> categories, Function(String) onTap) {
   return SizedBox(
-    height: 100, // Fixed height for horizontal scrolling
+    height: 100, 
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),

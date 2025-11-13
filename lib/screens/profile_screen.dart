@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:buildmate/services/auth_service.dart';
 import 'package:buildmate/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -41,6 +42,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     final authService = AuthService();
     await authService.logout();
+
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('user_id');
 
     setState(() {
       currentUser = null;
@@ -124,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _uploadImage(File image) async {
     const apiKey = '4e101c88314158dc6123292f2271d307';
-    final url = Uri.parse('https://api.imgbb.com/1/upload?key=$apiKey');
+    final url = Uri.parse('https:
 
     final request = http.MultipartRequest('POST', url);
     request.files.add(await http.MultipartFile.fromPath('image', image.path));
@@ -156,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      // Handle upload error (optional)
+      
     }
   }
 
@@ -166,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Header
+            
             Container(
               width: double.infinity,
               decoration: BoxDecoration(

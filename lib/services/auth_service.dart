@@ -8,7 +8,7 @@ class AuthService {
   static const String _userKey = 'user_data';
   static const String _tokenKey = 'auth_token';
 
-  // Get stored user
+  
   Future<User?> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString(_userKey);
@@ -17,7 +17,7 @@ class AuthService {
         final userJson = json.decode(userData);
         return User.fromJson(userJson);
       } catch (e) {
-        // Clear corrupted data
+        
         await logout();
         return null;
       }
@@ -25,20 +25,22 @@ class AuthService {
     return null;
   }
 
-  // Store user data
+  
   Future<void> setCurrentUser(User user) async {
     final prefs = await SharedPreferences.getInstance();
     final userData = json.encode(user.toJson());
     await prefs.setString(_userKey, userData);
+    await prefs.setBool('isLoggedIn', true);
+    await prefs.setInt('user_id', user.id);
   }
 
-  // Check if user is logged in
+  
   Future<bool> isLoggedIn() async {
     final user = await getCurrentUser();
     return user != null;
   }
 
-  // Login user
+  
   Future<User?> login(String email, String password) async {
     try {
       final response = await ApiService().post(
@@ -60,7 +62,7 @@ class AuthService {
     }
   }
 
-  // Register user
+  
   Future<Map<String, dynamic>> register(
     String name,
     String email,
@@ -87,7 +89,7 @@ class AuthService {
     }
   }
 
-  // Send verification email
+  
   Future<bool> sendVerificationEmail(String email) async {
     try {
       final response = await ApiService().post(
@@ -100,7 +102,7 @@ class AuthService {
     }
   }
 
-  // Verify email
+  
   Future<bool> verifyEmail(String email, String code) async {
     try {
       final response = await ApiService().post(
@@ -113,7 +115,7 @@ class AuthService {
     }
   }
 
-  // Update user profile
+  
   Future<bool> updateProfile(int userId, Map<String, dynamic> updates) async {
     try {
       final response = await ApiService().patch(
@@ -121,7 +123,7 @@ class AuthService {
         body: updates,
       );
       if (response.statusCode == 200) {
-        // Update stored user data
+        
         final currentUser = await getCurrentUser();
         if (currentUser != null && currentUser.id == userId) {
           final updatedUser = currentUser.copyWith(
@@ -141,14 +143,14 @@ class AuthService {
     }
   }
 
-  // Logout user
+  
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userKey);
     await prefs.remove(_tokenKey);
   }
 
-  // Get user ID (for backward compatibility)
+  
   Future<int?> getUserId() async {
     final user = await getCurrentUser();
     return user?.id;

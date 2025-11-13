@@ -123,16 +123,16 @@ class _HomeContentState extends State<HomeContent> {
     _fetchProducts();
     _scrollController.addListener(_onScroll);
 
-    // Force refresh products when navigating back to dashboard (e.g., after login)
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshProductsIfNeeded();
-      // Additional check after a longer delay to handle slow login processing
+      
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
           _refreshProductsIfNeeded();
         }
       });
-      // Additional check after login completion
+      
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           _refreshProductsIfNeeded();
@@ -144,10 +144,11 @@ class _HomeContentState extends State<HomeContent> {
   Future<void> _refreshProductsIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    final userId = prefs.getInt('user_id');
 
-    // If user just logged in and products are empty, force refresh
-    if (isLoggedIn && products.isEmpty && !isLoading) {
-      // Small delay to ensure login is fully processed
+    
+    if (isLoggedIn && userId != null && products.isEmpty && !isLoading) {
+      
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted && products.isEmpty) {
         debugPrint('Dashboard: Refreshing products after login');
@@ -188,7 +189,7 @@ class _HomeContentState extends State<HomeContent> {
       }
     } catch (e) {
       debugPrint('Dashboard: Initial fetch failed: $e');
-      // Retry multiple times with increasing delays
+      
       for (int attempt = 1; attempt <= 3; attempt++) {
         await Future.delayed(Duration(seconds: attempt));
         if (mounted) {
@@ -206,12 +207,12 @@ class _HomeContentState extends State<HomeContent> {
                 _loadInitialBatch();
                 isLoading = false;
               });
-              return; // Success, exit retry loop
+              return; 
             }
           } catch (e2) {
             debugPrint('Dashboard: Retry $attempt failed: $e2');
             if (attempt == 3) {
-              // Final attempt failed
+              
               setState(() {
                 error = 'Error fetching products: $e2';
                 isLoading = false;
@@ -219,7 +220,7 @@ class _HomeContentState extends State<HomeContent> {
             }
           }
         } else {
-          return; // Widget disposed
+          return; 
         }
       }
     }
@@ -235,7 +236,7 @@ class _HomeContentState extends State<HomeContent> {
 
     setState(() => isLoadingMore = true);
 
-    // Simulate loading delay for better UX
+    
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
         setState(() {
@@ -293,7 +294,7 @@ class _HomeContentState extends State<HomeContent> {
         ),
       );
     } else if (error.isNotEmpty && products.isEmpty) {
-      // error and nothing to show -> show error message
+      
       productsSection = Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24.0),
@@ -301,7 +302,7 @@ class _HomeContentState extends State<HomeContent> {
         ),
       );
     } else {
-      // either we have products (cached/previous) or loading finished successfully
+      
       productsSection = GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -324,8 +325,9 @@ class _HomeContentState extends State<HomeContent> {
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+              final userId = prefs.getInt('user_id');
 
-              if (!isLoggedIn) {
+              if (!isLoggedIn || userId == null) {
                 if (mounted) {
                   showDialog(
                     context: context,

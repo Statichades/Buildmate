@@ -40,7 +40,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         final orders = (json.decode(response.body) as List)
             .map((order) => Order.fromJson(order))
             .toList();
-        // Sort orders by creation date (newest first)
+        
         orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         setState(() {
@@ -115,7 +115,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
       body: Column(
         children: [
-          // Filter Tabs
+          
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -158,7 +158,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
           ),
-          // Orders List
+          
           Expanded(
             child: RefreshIndicator(
               onRefresh: _fetchOrders,

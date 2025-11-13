@@ -20,7 +20,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<product_model.Product> _filteredProducts = [];
 
-  // Filter state
+  
   List<Map<String, dynamic>> _categories = [];
   String? _selectedCategory;
   RangeValues? _currentRangeValues;
@@ -60,7 +60,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
       }
     } catch (e) {
-      // Handle error silently
+      
       debugPrint("Failed to fetch categories: $e");
     }
   }
@@ -341,8 +341,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   onPressed: () async {
                     final prefs = await SharedPreferences.getInstance();
                     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+                    final userId = prefs.getInt('user_id');
 
-                    if (!isLoggedIn) {
+                    if (!isLoggedIn || userId == null) {
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(

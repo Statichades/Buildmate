@@ -62,7 +62,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => isSigningUp = true);
 
-    //then e add ang user adto sa database
+    
     try {
       final authService = AuthService();
       final result = await authService.register(username, email, password);
@@ -77,7 +77,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         passwordController.clear();
         confirmPasswordController.clear();
 
-        // Send verification email
+        
         await authService.sendVerificationEmail(email);
 
         if (mounted) {

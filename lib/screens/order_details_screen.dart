@@ -34,7 +34,7 @@ class OrderDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order Status Card
+            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -123,7 +123,7 @@ class OrderDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Order Items
+            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -166,7 +166,7 @@ class OrderDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Shipping Address
+            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -239,7 +239,7 @@ class OrderDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Payment Info
+            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(

@@ -32,7 +32,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _usernameController.text = user.name;
         _emailController.text = user.email;
         _mobileController.text = user.mobileNumber ?? '';
-        // Password is not loaded for security reasons
+        
       });
     }
   }
@@ -122,7 +122,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              // Modern Profile Avatar
+              
               Center(
                 child: Container(
                   width: 120,

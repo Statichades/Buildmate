@@ -4,6 +4,7 @@ import 'package:buildmate/screens/signup_screen.dart';
 import 'package:buildmate/screens/email_verification_screen.dart';
 import 'package:buildmate/services/auth_service.dart';
 import 'package:buildmate/utils/toast_util.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,15 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    // kung walay gi input maam mo gawas ni
+    
     if (email.isEmpty || password.isEmpty) {
       showModernToast(message: 'Please enter email and password');
       return;
     }
 
     setState(() => isLoggingIn = true);
-    // check if the users and password is correct and is in the database
-    // basta mao nana maam
+    
+    
     try {
       final authService = AuthService();
       final user = await authService.login(email, password);
@@ -53,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           showModernToast(message: 'Login successful');
           if (mounted) {
-            // Login na
+            
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const DashboardScreen()),
@@ -72,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // design ni namo maam
+  
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;

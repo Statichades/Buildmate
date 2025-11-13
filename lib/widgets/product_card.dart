@@ -47,8 +47,8 @@ Widget productCard({
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  height: 150, // Fixed height for performance
-                  memCacheWidth: 300, // Optimize memory usage
+                  height: 150, 
+                  memCacheWidth: 300, 
                   placeholder: (context, url) => Container(
                     color: Colors.grey[100],
                     child: Center(
@@ -76,26 +76,26 @@ Widget productCard({
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12), // Increased padding for better touch targets
+            padding: const EdgeInsets.all(12), 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
                   style: const TextStyle(
-                    fontSize: 15, // Slightly larger font
+                    fontSize: 15, 
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87, // Better contrast
+                    color: Colors.black87, 
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6), // Increased spacing
+                const SizedBox(height: 6), 
                 Text(
                   '₱$price',
                   style: const TextStyle(
                     color: Color(0xFF615EFC),
-                    fontSize: 14, // Slightly larger font
+                    fontSize: 14, 
                     fontWeight: FontWeight.bold,
                   ),
                 ),

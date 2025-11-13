@@ -72,7 +72,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       return;
     }
 
-    // Check if item is already in cart (both cache and API)
+    
     bool alreadyInCart = await _isItemInCart(userId, widget.product.id);
     if (alreadyInCart) {
       showModernToast(message: 'This item is already in your cart');
@@ -93,6 +93,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
       if (response.statusCode == 201) {
         showModernToast(message: 'Item added to cart!');
+        
+        CartScreen.refreshCart();
         if (mounted) {
           Navigator.pop(context);
         }
@@ -153,7 +155,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           ),
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.3), // Transparent black overlay
+              color: Colors.black.withOpacity(0.3), 
             ),
           ),
           Positioned.fill(
@@ -176,7 +178,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           SafeArea(
             child: Column(
               children: [
-                // Top bar with close and favorite buttons
+                
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -225,7 +227,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Product name and rating
+                      
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -360,7 +362,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ],
                       ),
                       const SizedBox(height: 20),
-                      // Description section
+                      
                       if (widget.product.description != null) ...[
                         _buildExpandableSection(
                           title: "Description",
@@ -373,7 +375,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ),
                         const SizedBox(height: 16),
                       ],
-                      // Specifications section
+                      
                       if (widget.product.specifications != null &&
                           widget.product.specifications!.isNotEmpty) ...[
                         _buildExpandableSection(
@@ -389,7 +391,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ),
                         const SizedBox(height: 20),
                       ],
-                      // Quantity selector
+                      
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -453,7 +455,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ],
                       ),
                       const SizedBox(height: 32),
-                      // Action buttons
+                      
                       Row(
                         children: [
                           Expanded(
@@ -483,7 +485,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   return;
                                 }
 
-                                // Create a cart item from the current product
+                                
                                 final cartItem = CartItem(
                                   id: 0,
                                   productId: widget.product.id,
@@ -494,7 +496,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   isSelected: true,
                                 );
 
-                                // Navigate to checkout with this single item
+                                
                                 if (mounted) {
                                   Navigator.push(
                                     context,

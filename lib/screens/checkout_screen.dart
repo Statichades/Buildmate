@@ -9,7 +9,7 @@ import 'cart_screen.dart';
 import 'shipping_address_screen.dart';
 import 'order_confirmation_screen.dart';
 
-const String baseUrl = 'https://buildmate-db.onrender.com/api';
+const String baseUrl = 'https:
 
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -73,7 +73,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       .fold(0, (sum, item) => sum + (double.parse(item.price) * item.quantity));
 
   double get _shippingFee =>
-      _subtotal > 500 ? 0 : 50; // Free shipping over ₱500
+      _subtotal > 500 ? 0 : 50; 
   double get _total => _subtotal + _shippingFee;
 
   Future<void> _placeOrder() async {
@@ -130,7 +130,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           final orderData = json.decode(response.body);
           final order = Order.fromJson(orderData);
 
-          // Clear selected cart items
+          
           await _clearCartItems();
 
           if (mounted) {
@@ -171,7 +171,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       try {
         await http.delete(Uri.parse('$baseUrl/cart/$userId/${item.productId}'));
       } catch (e) {
-        // Continue with other items even if one fails
+        
       }
     }
   }

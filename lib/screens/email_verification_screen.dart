@@ -21,7 +21,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void initState() {
     super.initState();
-    // Verification code is already sent during signup
+    
   }
 
   Future<void> _verifyEmail() async {

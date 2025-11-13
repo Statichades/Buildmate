@@ -41,20 +41,30 @@ class CartItem {
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
+  static void refreshCart() {
+    
+    _currentCartState?._fetchCartItems();
+  }
+
   @override
   State<CartScreen> createState() => _CartScreenState();
 }
+
+
+_CartScreenState? _currentCartState;
 
 class _CartScreenState extends State<CartScreen> {
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
   late ConnectivityService _connectivityService;
-  // ignore: unused_field
+  
   bool _isOnline = true;
 
   @override
   void initState() {
     super.initState();
+    
+    _currentCartState = this;
     _connectivityService = ConnectivityService();
     _connectivityService.connectionStatus.listen((isOnline) {
       if (mounted) {
@@ -65,7 +75,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _deleteCartItem(CartItem item) async {
-    // Optimistically remove from UI first
+    
     final itemIndex = _cartItems.indexOf(item);
     setState(() {
       _cartItems.remove(item);
@@ -76,7 +86,7 @@ class _CartScreenState extends State<CartScreen> {
       final userId = prefs.getInt('user_id');
 
       if (userId == null) {
-        // Revert on error
+        
         if (mounted)
           setState(() {
             _cartItems.insert(itemIndex, item);
@@ -89,7 +99,7 @@ class _CartScreenState extends State<CartScreen> {
       );
 
       if (response.statusCode != 200) {
-        // Revert on server error
+        
         if (mounted)
           setState(() {
             _cartItems.insert(itemIndex, item);
@@ -100,7 +110,7 @@ class _CartScreenState extends State<CartScreen> {
           );
       }
     } catch (e) {
-      // Revert on network error
+      
       if (mounted)
         setState(() {
           _cartItems.insert(itemIndex, item);
@@ -164,7 +174,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _updateCartQuantity(CartItem item, int quantity) async {
-    // Optimistically update UI first
+    
     final oldQuantity = item.quantity;
     setState(() {
       item.quantity = quantity;
@@ -179,7 +189,7 @@ class _CartScreenState extends State<CartScreen> {
           body: {'quantity': quantity},
         );
         if (response.statusCode != 200) {
-          // Revert on error
+          
           if (mounted)
             setState(() {
               item.quantity = oldQuantity;
@@ -193,7 +203,7 @@ class _CartScreenState extends State<CartScreen> {
         }
       }
     } catch (e) {
-      // Revert on error
+      
       if (mounted)
         setState(() {
           item.quantity = oldQuantity;
