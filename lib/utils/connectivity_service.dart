@@ -5,21 +5,25 @@ class ConnectivityService {
   final Connectivity _connectivity = Connectivity();
   final StreamController<bool> _connectionStatusController =
       StreamController<bool>.broadcast();
+  StreamSubscription<List<ConnectivityResult>>? _subscription;
 
   Stream<bool> get connectionStatus => _connectionStatusController.stream;
 
   ConnectivityService() {
-    _connectivity.onConnectivityChanged.listen((
+    _subscription = _connectivity.onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
       final result = results.isNotEmpty
           ? results.first
           : ConnectivityResult.none;
-      _connectionStatusController.add(result != ConnectivityResult.none);
+      if (!_connectionStatusController.isClosed) {
+        _connectionStatusController.add(result != ConnectivityResult.none);
+      }
     });
   }
 
   void dispose() {
+    _subscription?.cancel();
     _connectionStatusController.close();
   }
 }

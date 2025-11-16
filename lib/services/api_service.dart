@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'https:
+  static const String baseUrl = 'https://buildmate-db.onrender.com/api';
 
   final http.Client _client = http.Client();
 

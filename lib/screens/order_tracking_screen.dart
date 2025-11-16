@@ -32,7 +32,6 @@ class OrderTrackingScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -85,7 +84,7 @@ class OrderTrackingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -113,8 +112,9 @@ class OrderTrackingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             Container(
+              constraints: const BoxConstraints(minWidth: double.infinity),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -150,8 +150,9 @@ class OrderTrackingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${order.shippingAddress.addressLine1}${order.shippingAddress.addressLine2 != null ? '\n${order.shippingAddress.addressLine2}' : ''}\n${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}',
-                    style: TextStyle(color: Colors.grey[600]),
+                    '${order.shippingAddress.state}, ${order.shippingAddress.city}${order.shippingAddress.addressLine2 != null ? ', ${order.shippingAddress.addressLine2}' : ''}, ${order.shippingAddress.addressLine1}',
+                    softWrap: true,
+                    maxLines: null,
                   ),
                 ],
               ),

@@ -104,11 +104,6 @@ class OrderConfirmationScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 32),
-              Text(
-                'You will receive an email confirmation shortly.',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
               Spacer(),
               SizedBox(
                 width: double.infinity,

@@ -9,7 +9,7 @@ import 'cart_screen.dart';
 import 'shipping_address_screen.dart';
 import 'order_confirmation_screen.dart';
 
-const String baseUrl = 'https:
+const String baseUrl = 'https://buildmate-db.onrender.com/api';
 
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -44,7 +44,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/shipping-addresses?user_id=$userId'),
+        Uri.parse('$baseUrl/shipping_addresses/$userId'),
       );
       if (response.statusCode == 200) {
         final addresses = (json.decode(response.body) as List)
@@ -62,18 +62,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _isLoadingAddresses = false;
           });
         }
+      } else {
+        debugPrint(
+          'Fetch addresses failed: ${response.statusCode} - ${response.body}',
+        );
+        if (mounted) setState(() => _isLoadingAddresses = false);
       }
     } catch (e) {
+      debugPrint('Error fetching addresses: $e');
       if (mounted) setState(() => _isLoadingAddresses = false);
     }
   }
 
   double get _subtotal => widget.cartItems
       .where((item) => item.isSelected)
-      .fold(0, (sum, item) => sum + (double.parse(item.price) * item.quantity));
+      .fold(
+        0.0,
+        (sum, item) => sum + (double.parse(item.price) * item.quantity),
+      );
 
   double get _shippingFee =>
-      _subtotal > 500 ? 0 : 50; 
+      _subtotal > 500 ? 0 : 50; // Free shipping over ₱500
   double get _total => _subtotal + _shippingFee;
 
   Future<void> _placeOrder() async {
@@ -101,7 +110,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           (item) => OrderItem(
             productId: item.productId,
             name: item.name,
-            price: double.parse(item.price),
+            price: double.tryParse(item.price) ?? 0.0,
             imageUrl: item.imageUrl,
             quantity: item.quantity,
           ),
@@ -111,7 +120,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final orderData = {
       'user_id': userId,
       'items': orderItems.map((item) => item.toJson()).toList(),
-      'shipping_address': _selectedAddress!.toJson(),
+      'shipping_address_id': _selectedAddress!.id,
       'subtotal': _subtotal,
       'shipping_fee': _shippingFee,
       'total': _total,
@@ -125,12 +134,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         body: json.encode(orderData),
       );
 
-      if (mounted) {
-        if (response.statusCode == 201) {
-          final orderData = json.decode(response.body);
-          final order = Order.fromJson(orderData);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final orderResponse = json.decode(response.body);
+        final orderId = orderResponse['id'];
 
-          
+        // Fetch the full order details
+        final fullOrderResponse = await http.get(
+          Uri.parse('$baseUrl/orders/$orderId'),
+        );
+        if (fullOrderResponse.statusCode == 200) {
+          final fullOrderData = json.decode(fullOrderResponse.body);
+          final order = Order.fromJson(fullOrderData);
+
+          // Clear selected cart items
           await _clearCartItems();
 
           if (mounted) {
@@ -142,16 +158,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             );
           }
         } else {
+          debugPrint(
+            'Fetch order details failed: ${fullOrderResponse.statusCode} - ${fullOrderResponse.body}',
+          );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to place order')),
+            SnackBar(
+              content: Text(
+                'Failed to fetch order details: ${fullOrderResponse.statusCode}',
+              ),
+            ),
           );
         }
+      } else {
+        debugPrint(
+          'Place order failed: ${response.statusCode} - ${response.body}',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to place order: ${response.statusCode}'),
+          ),
+        );
       }
     } catch (e) {
+      debugPrint('Error placing order: $e');
       if (mounted)
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('An error occurred')));
+        ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
     } finally {
       if (mounted) setState(() => _isPlacingOrder = false);
     }
@@ -171,7 +204,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       try {
         await http.delete(Uri.parse('$baseUrl/cart/$userId/${item.productId}'));
       } catch (e) {
-        
+        // Continue with other items even if one fails
       }
     }
   }
@@ -363,7 +396,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₱${(double.parse(item.price) * item.quantity).toStringAsFixed(2)}',
+                '₱${((double.tryParse(item.price) ?? 0.0) * item.quantity).toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -498,8 +531,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${_selectedAddress!.addressLine1}${_selectedAddress!.addressLine2 != null ? '\n${_selectedAddress!.addressLine2}' : ''}\n'
-                          '${_selectedAddress!.city}, ${_selectedAddress!.state} ${_selectedAddress!.postalCode}',
+                          '${_selectedAddress!.state}, ${_selectedAddress!.city}${_selectedAddress!.addressLine2 != null ? ', ${_selectedAddress!.addressLine2}' : ''}, ${_selectedAddress!.addressLine1}',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       ),

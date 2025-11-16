@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -28,25 +29,31 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
-      final response = await ApiService().get(
-        '/shipping-addresses?user_id=$userId',
-      );
+      final response = await ApiService().get('/shipping_addresses/$userId');
       if (response.statusCode == 200) {
         final addresses = (json.decode(response.body) as List)
             .map((addr) => ShippingAddress.fromJson(addr))
             .toList();
-        setState(() {
-          _addresses = addresses;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _addresses = addresses;
+            _isLoading = false;
+          });
+        }
+      } else {
+        debugPrint(
+          'Fetch addresses failed: ${response.statusCode} - ${response.body}',
+        );
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint('Error fetching addresses: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -55,20 +62,32 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
 
     try {
       final response = await ApiService().delete(
-        '/shipping-addresses/${address.id}',
+        '/shipping_addresses/${address.id}',
       );
 
       if (response.statusCode == 200) {
-        setState(() {
-          _addresses.remove(address);
-        });
         if (mounted) {
+          setState(() {
+            _addresses.remove(address);
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Address deleted successfully')),
           );
         }
+      } else {
+        debugPrint(
+          'Delete address failed: ${response.statusCode} - ${response.body}',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete address: ${response.statusCode}'),
+            ),
+          );
+        }
       }
     } catch (e) {
+      debugPrint('Error deleting address: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to delete address')),
@@ -134,11 +153,7 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 80,
-                      color: Colors.grey,
-                    ),
+                    Icon(Icons.local_shipping, size: 80, color: Colors.grey),
                     SizedBox(height: 20),
                     Text(
                       "No addresses found",
@@ -224,8 +239,8 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
             const SizedBox(height: 8),
             Text(
               address != null
-                  ? '${address.addressLine1}${address.addressLine2 != null ? '\n${address.addressLine2}' : ''}\n${address.city}, ${address.state} ${address.postalCode}'
-                  : '123 Main St\nManila, Metro Manila 1000',
+                  ? '${address.state}, ${address.city}${address.addressLine2 != null ? ', ${address.addressLine2}' : ''}, ${address.addressLine1}'
+                  : 'Bohol, Buenavista, Bato, Purok 2',
               style: TextStyle(color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
@@ -240,10 +255,14 @@ class _ShippingAddressScreenState extends State<ShippingAddressScreen> {
                 ),
                 const SizedBox(width: 8),
                 TextButton(
-                  onPressed: address != null
+                  onPressed: address != null && !address.isDefault
                       ? () => _deleteAddress(address)
                       : null,
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  style: TextButton.styleFrom(
+                    foregroundColor: address != null && !address.isDefault
+                        ? Colors.red
+                        : Colors.grey,
+                  ),
                   child: const Text('Delete'),
                 ),
               ],
@@ -289,27 +308,58 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressLine1Controller = TextEditingController();
-  final _addressLine2Controller = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
-  final _postalCodeController = TextEditingController();
-  final _countryController = TextEditingController();
   bool _isDefault = false;
   bool _isLoading = false;
+
+  List<dynamic> _provinces = [];
+  List<String> _barangays = [];
+  String? _selectedProvince;
+  String? _selectedMunicipality;
+  String? _selectedBarangay;
 
   @override
   void initState() {
     super.initState();
+    // Set default values for new addresses
+    _selectedProvince = 'Bohol';
+    _selectedMunicipality = 'Buenavista';
     if (widget.address != null) {
       _fullNameController.text = widget.address!.fullName;
       _phoneController.text = widget.address!.phone;
       _addressLine1Controller.text = widget.address!.addressLine1;
-      _addressLine2Controller.text = widget.address!.addressLine2 ?? '';
-      _cityController.text = widget.address!.city;
-      _stateController.text = widget.address!.state;
-      _postalCodeController.text = widget.address!.postalCode;
-      _countryController.text = widget.address!.country;
+      _selectedProvince = widget.address!.state;
+      _selectedMunicipality = widget.address!.city;
+      _selectedBarangay =
+          widget.address!.addressLine2; // Using addressLine2 for barangay
       _isDefault = widget.address!.isDefault;
+    }
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      final String response = await rootBundle.loadString(
+        'assets/buenavista_bohol.json',
+      );
+      final data = json.decode(response);
+      setState(() {
+        _provinces = [
+          {
+            "name": "Bohol",
+            "municipalities": [
+              {"name": "Buenavista", "barangays": data['barangays'] ?? []},
+            ],
+          },
+        ];
+        // Always set province and municipality to Bohol and Buenavista
+        _selectedProvince = 'Bohol';
+        _selectedMunicipality = 'Buenavista';
+        _barangays = List<String>.from(data['barangays'] ?? []);
+      });
+    } catch (e) {
+      debugPrint('Error loading locations: $e');
     }
   }
 
@@ -318,16 +368,29 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _addressLine1Controller.dispose();
-    _addressLine2Controller.dispose();
     _cityController.dispose();
     _stateController.dispose();
-    _postalCodeController.dispose();
-    _countryController.dispose();
     super.dispose();
   }
 
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Additional validation for required fields
+    if (_selectedProvince == null ||
+        _selectedProvince!.isEmpty ||
+        _selectedMunicipality == null ||
+        _selectedMunicipality!.isEmpty ||
+        _selectedBarangay == null ||
+        _selectedBarangay!.isEmpty ||
+        _addressLine1Controller.text.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill in all required fields.')),
+        );
+      }
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -344,22 +407,29 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       fullName: _fullNameController.text,
       phone: _phoneController.text,
       addressLine1: _addressLine1Controller.text,
-      addressLine2: _addressLine2Controller.text.isEmpty
-          ? null
-          : _addressLine2Controller.text,
-      city: _cityController.text,
-      state: _stateController.text,
-      postalCode: _postalCodeController.text,
-      country: _countryController.text,
+      addressLine2: _selectedBarangay, // Using addressLine2 for barangay
+      city: _selectedMunicipality ?? '',
+      state: _selectedProvince ?? '',
+      postalCode: '6304', // Default postal code for Buenavista, Bohol
+      country: 'Philippines',
       isDefault: _isDefault,
     );
 
     try {
       final url = widget.address != null
-          ? '/shipping-addresses/${widget.address!.id}'
-          : '/shipping-addresses';
+          ? '/shipping_addresses/${widget.address!.id}'
+          : '/shipping_addresses';
 
-      final requestBody = {...address.toJson(), 'user_id': userId};
+      final requestBody = {
+        'user_id': userId,
+        'full_name': _fullNameController.text,
+        'phone': _phoneController.text,
+        'province': _selectedProvince ?? '',
+        'municipality': _selectedMunicipality ?? '',
+        'barangay': _selectedBarangay ?? '',
+        'address': _addressLine1Controller.text,
+        'is_default': _isDefault,
+      };
 
       final response = widget.address != null
           ? await ApiService().put(url, body: requestBody)
@@ -379,13 +449,19 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
           );
         }
       } else {
+        debugPrint(
+          'Save address failed: ${response.statusCode} - ${response.body}',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to save address')),
+            SnackBar(
+              content: Text('Failed to save address: ${response.statusCode}'),
+            ),
           );
         }
       }
     } catch (e) {
+      debugPrint('Error saving address: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -423,32 +499,109 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
           key: _formKey,
           child: Column(
             children: [
-              _buildModernTextField('Full Name', _fullNameController),
-              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF615EFC), Color(0xFF8B5CF6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF615EFC).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.local_shipping,
+                    size: 60,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                widget.address != null
+                    ? 'Edit Shipping Address'
+                    : 'Add Shipping Address',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3748),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.address != null
+                    ? 'Update your shipping information'
+                    : 'Add your shipping information',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
               _buildModernTextField(
-                'Phone Number',
-                _phoneController,
+                controller: _fullNameController,
+                label: "Full Name",
+                icon: Icons.person_outline,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a full name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              _buildModernTextField(
+                controller: _phoneController,
+                label: "Phone Number",
+                icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a phone number';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
-              _buildModernTextField('Address Line 1', _addressLine1Controller),
+              _buildDisabledTextField(
+                'Province',
+                _selectedProvince ?? '',
+                Icons.location_city,
+              ),
+              const SizedBox(height: 16),
+              _buildDisabledTextField(
+                'Municipality/City',
+                _selectedMunicipality ?? '',
+                Icons.location_on,
+              ),
+              const SizedBox(height: 16),
+              _buildDropdownField(
+                'Barangay',
+                _selectedBarangay,
+                _barangays,
+                (value) => setState(() => _selectedBarangay = value),
+                enabled: _selectedMunicipality != null,
+              ),
               const SizedBox(height: 16),
               _buildModernTextField(
-                'Address Line 2 (Optional)',
-                _addressLine2Controller,
+                controller: _addressLine1Controller,
+                label: "Address",
+                icon: Icons.home_outlined,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an address';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 16),
-              _buildModernTextField('City', _cityController),
-              const SizedBox(height: 16),
-              _buildModernTextField('State/Province', _stateController),
-              const SizedBox(height: 16),
-              _buildModernTextField(
-                'Postal Code',
-                _postalCodeController,
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              _buildModernTextField('Country', _countryController),
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
@@ -508,11 +661,13 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     );
   }
 
-  Widget _buildModernTextField(
-    String label,
-    TextEditingController controller, {
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -528,14 +683,15 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       ),
       child: TextFormField(
         controller: controller,
+        obscureText: obscureText,
         keyboardType: keyboardType,
-        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
             color: Colors.grey.shade600,
             fontWeight: FontWeight.w500,
           ),
+          prefixIcon: Icon(icon, color: const Color(0xFF615EFC)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -555,9 +711,106 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        validator: validator,
+      ),
+    );
+  }
+
+  Widget _buildDisabledTextField(String label, String value, IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        initialValue: value,
+        enabled: false,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Icon(icon, color: Colors.grey.shade400),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 20,
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(
+    String label,
+    String? value,
+    List<String> items,
+    ValueChanged<String?> onChanged, {
+    bool enabled = true,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: enabled ? Colors.white : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        onChanged: enabled ? onChanged : null,
+        items: items.map((item) {
+          return DropdownMenuItem<String>(value: item, child: Text(item));
+        }).toList(),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: enabled ? Colors.grey.shade600 : Colors.grey.shade400,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Icon(
+            Icons.place_outlined,
+            color: enabled ? const Color(0xFF615EFC) : Colors.grey.shade400,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFF615EFC), width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 20,
+          ),
+          filled: true,
+          fillColor: enabled ? Colors.white : Colors.grey.shade100,
+          floatingLabelStyle: const TextStyle(
+            color: Color(0xFF615EFC),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         validator: (value) {
           if (value == null || value.isEmpty) {
-            return 'Please enter $label';
+            return 'Please select $label';
           }
           return null;
         },

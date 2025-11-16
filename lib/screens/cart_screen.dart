@@ -36,13 +36,23 @@ class CartItem {
       quantity: json['quantity'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'product_id': productId,
+      'name': name,
+      'price': price,
+      'image_url': imageUrl,
+      'quantity': quantity,
+    };
+  }
 }
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
   static void refreshCart() {
-    
     _currentCartState?._fetchCartItems();
   }
 
@@ -50,20 +60,20 @@ class CartScreen extends StatefulWidget {
   State<CartScreen> createState() => _CartScreenState();
 }
 
-
 _CartScreenState? _currentCartState;
 
 class _CartScreenState extends State<CartScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
   late ConnectivityService _connectivityService;
-  
+
   bool _isOnline = true;
 
   @override
   void initState() {
     super.initState();
-    
+
     _currentCartState = this;
     _connectivityService = ConnectivityService();
     _connectivityService.connectionStatus.listen((isOnline) {
@@ -75,7 +85,6 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _deleteCartItem(CartItem item) async {
-    
     final itemIndex = _cartItems.indexOf(item);
     setState(() {
       _cartItems.remove(item);
@@ -86,11 +95,11 @@ class _CartScreenState extends State<CartScreen> {
       final userId = prefs.getInt('user_id');
 
       if (userId == null) {
-        
-        if (mounted)
+        if (mounted) {
           setState(() {
             _cartItems.insert(itemIndex, item);
           });
+        }
         return;
       }
 
@@ -99,28 +108,30 @@ class _CartScreenState extends State<CartScreen> {
       );
 
       if (response.statusCode != 200) {
-        
-        if (mounted)
+        if (mounted) {
           setState(() {
             _cartItems.insert(itemIndex, item);
           });
-        if (mounted)
+        }
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Failed to delete item.")),
           );
+        }
       }
     } catch (e) {
-      
-      if (mounted)
+      if (mounted) {
         setState(() {
           _cartItems.insert(itemIndex, item);
         });
-      if (mounted)
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("An error occurred while deleting item."),
           ),
         );
+      }
     }
   }
 
@@ -136,10 +147,11 @@ class _CartScreenState extends State<CartScreen> {
     final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
       return;
     }
 
@@ -155,17 +167,19 @@ class _CartScreenState extends State<CartScreen> {
           });
         }
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _isLoading = false;
           });
+        }
       }
     } catch (e) {
       debugPrint('Error fetching cart: $e');
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -174,7 +188,6 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _updateCartQuantity(CartItem item, int quantity) async {
-    
     final oldQuantity = item.quantity;
     setState(() {
       item.quantity = quantity;
@@ -189,37 +202,54 @@ class _CartScreenState extends State<CartScreen> {
           body: {'quantity': quantity},
         );
         if (response.statusCode != 200) {
-          
-          if (mounted)
+          debugPrint(
+            'Update quantity failed: ${response.statusCode} - ${response.body}',
+          );
+          if (mounted) {
             setState(() {
               item.quantity = oldQuantity;
             });
-          if (mounted)
+          }
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("An error occurred while updating quantity."),
+              SnackBar(
+                content: Text(
+                  "Failed to update quantity: ${response.statusCode}",
+                ),
               ),
             );
+          }
         }
       }
     } catch (e) {
-      
-      if (mounted)
+      debugPrint('Error updating quantity: $e');
+      if (mounted) {
         setState(() {
           item.quantity = oldQuantity;
         });
-      if (mounted)
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("An error occurred while updating quantity."),
           ),
         );
+      }
     }
   }
 
   void toggleSelection(int index) {
     setState(() {
       _cartItems[index].isSelected = !_cartItems[index].isSelected;
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      final selectAll = !_allSelected;
+      for (var item in _cartItems) {
+        item.isSelected = selectAll;
+      }
     });
   }
 
@@ -237,6 +267,8 @@ class _CartScreenState extends State<CartScreen> {
 
   bool get hasSelected => _cartItems.any((item) => item.isSelected);
 
+  bool get _allSelected => _cartItems.every((item) => item.isSelected);
+
   double get totalPrice => _cartItems
       .where((item) => item.isSelected)
       .fold(0, (sum, item) => sum + (double.parse(item.price) * item.quantity));
@@ -244,6 +276,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
@@ -263,6 +296,14 @@ class _CartScreenState extends State<CartScreen> {
         ),
         automaticallyImplyLeading: false,
         actions: [
+          if (_cartItems.isNotEmpty)
+            IconButton(
+              onPressed: _toggleSelectAll,
+              icon: Icon(
+                _allSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                color: const Color(0xFF615EFC),
+              ),
+            ),
           if (hasSelected)
             IconButton(
               onPressed: _deleteSelectedCartItems,

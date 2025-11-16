@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:buildmate/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../models/order_model.dart';
 import 'order_details_screen.dart';
+
+const String baseUrl = 'https://buildmate-db.onrender.com/api';
 
 class OrderHistoryScreen extends StatefulWidget {
   final String? initialFilter;
@@ -20,6 +23,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'all';
   final ScrollController _scrollController = ScrollController();
+  final Set<int> _selectedOrderIds = {};
 
   @override
   void initState() {
@@ -38,13 +42,42 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     }
 
     try {
-      final response = await ApiService().get('/orders/$userId');
+      final response = await ApiService().get('/orders/user/$userId');
 
       if (mounted) {
         if (response.statusCode == 200) {
           final List<dynamic> data = json.decode(response.body);
+          final orders = data.map((order) => Order.fromJson(order)).toList();
+
+          // Fetch items for each order
+          for (var order in orders) {
+            try {
+              final orderResponse = await ApiService().get(
+                '/orders/${order.id}',
+              );
+              if (orderResponse.statusCode == 200) {
+                final orderData = json.decode(orderResponse.body);
+                final fullOrder = Order.fromJson(orderData);
+                order = Order(
+                  id: order.id,
+                  userId: order.userId,
+                  items: fullOrder.items,
+                  shippingAddress: order.shippingAddress,
+                  subtotal: order.subtotal,
+                  shippingFee: order.shippingFee,
+                  total: order.total,
+                  status: order.status,
+                  createdAt: order.createdAt,
+                  updatedAt: order.updatedAt,
+                );
+              }
+            } catch (e) {
+              debugPrint('Error fetching items for order ${order.id}: $e');
+            }
+          }
+
           setState(() {
-            _orders = data.map((order) => Order.fromJson(order)).toList();
+            _orders = orders;
             _isLoading = false;
           });
         } else {
@@ -72,6 +105,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     }).toList();
   }
 
+  bool get _hasSelected => _selectedOrderIds.isNotEmpty;
+
+  bool get _allSelected =>
+      _filteredOrders.every((order) => _selectedOrderIds.contains(order.id));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,6 +126,16 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         backgroundColor: Colors.white,
         elevation: 2,
         iconTheme: const IconThemeData(color: Color(0xFF615EFC)),
+        actions: [
+          if (_filteredOrders.isNotEmpty)
+            IconButton(
+              onPressed: _toggleSelectAll,
+              icon: Icon(
+                _allSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                color: const Color(0xFF615EFC),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -149,7 +197,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildFilterButton('All', 'all'),
+          _buildFilterButton('Orders', 'all'),
           _buildFilterButton('Processing', 'processing'),
           _buildFilterButton('Delivered', 'delivered'),
           _buildFilterButton('Cancelled', 'cancelled'),
@@ -218,12 +266,22 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    order != null ? 'Order #${order.id}' : 'Order #12345',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  Row(
+                    children: [
+                      if (order != null)
+                        Checkbox(
+                          value: _selectedOrderIds.contains(order.id),
+                          onChanged: (value) => _toggleOrderSelection(order.id),
+                          activeColor: const Color(0xFF615EFC),
+                        ),
+                      Text(
+                        order != null ? 'Order #${order.id}' : 'Order #12345',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
                   _buildStatusBadge(order?.status ?? 'processing'),
                 ],
@@ -257,6 +315,32 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   ),
                 ],
               ),
+              if (order != null &&
+                  (order.status == 'pending' || order.status == 'processing'))
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => _cancelOrder(order),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel Order',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -265,27 +349,35 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Widget _buildStatusBadge(String status) {
+    Color backgroundColor;
     Color textColor;
     switch (status.toLowerCase()) {
       case 'delivered':
+        backgroundColor = Colors.green.withOpacity(0.1);
         textColor = Colors.green;
         break;
       case 'processing':
+        backgroundColor = Colors.orange.withOpacity(0.1);
+        textColor = Colors.orange;
+        break;
+      case 'pending':
+        backgroundColor = Colors.yellow.withOpacity(0.1);
         textColor = Colors.orange;
         break;
       case 'cancelled':
+        backgroundColor = Colors.red.withOpacity(0.1);
         textColor = Colors.red;
         break;
       default:
+        backgroundColor = Colors.grey.withOpacity(0.1);
         textColor = Colors.grey;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF615EFC), width: 1),
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         status.toUpperCase(),
@@ -298,11 +390,93 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
   }
 
+  void _toggleOrderSelection(int orderId) {
+    setState(() {
+      if (_selectedOrderIds.contains(orderId)) {
+        _selectedOrderIds.remove(orderId);
+      } else {
+        _selectedOrderIds.add(orderId);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_allSelected) {
+        _selectedOrderIds.removeAll(_filteredOrders.map((order) => order.id));
+      } else {
+        _selectedOrderIds.addAll(_filteredOrders.map((order) => order.id));
+      }
+    });
+  }
+
   void _navigateToOrderDetails(Order order) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => OrderDetailsScreen(order: order)),
     );
+  }
+
+  Future<void> _cancelOrder(Order order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Order'),
+        content: const Text(
+          'Are you sure you want to cancel this order? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/orders/${order.id}/status'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': 'cancelled'}),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Order cancelled successfully')),
+          );
+          _fetchOrders(); // Refresh the list
+        }
+      } else {
+        debugPrint(
+          'Cancel order failed: ${response.statusCode} - ${response.body}',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to cancel order: ${response.statusCode}'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cancelling order: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
+      }
+    }
   }
 
   String _formatDate(DateTime date) {

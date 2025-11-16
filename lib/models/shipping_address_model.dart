@@ -28,12 +28,12 @@ class ShippingAddress {
       id: json['id'],
       fullName: json['full_name'] ?? '',
       phone: json['phone'] ?? '',
-      addressLine1: json['address_line_1'] ?? '',
-      addressLine2: json['address_line_2'],
-      city: json['city'] ?? '',
-      state: json['state'] ?? '',
-      postalCode: json['postal_code'] ?? '',
-      country: json['country'] ?? '',
+      addressLine1: json['address'] ?? '',
+      addressLine2: json['barangay'],
+      city: json['municipality'] ?? '',
+      state: json['province'] ?? '',
+      postalCode: '6333', // Default postal code for Buenavista, Bohol
+      country: 'Philippines',
       isDefault: (json['is_default'] == 1) || (json['is_default'] == true),
     );
   }

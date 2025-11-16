@@ -19,7 +19,7 @@ class OrderItem {
     return OrderItem(
       productId: json['product_id'] ?? 0,
       name: json['name'] ?? '',
-      price: (json['price'] ?? 0.0).toDouble(),
+      price: double.tryParse(json['price']?.toString() ?? '0.0') ?? 0.0,
       imageUrl: json['image_url'],
       quantity: json['quantity'] ?? 1,
     );
@@ -62,24 +62,41 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    // Handle nested response structure
+    final orderData = json['order'] ?? json;
+
     return Order(
-      id: json['id'] ?? 0,
-      userId: json['user_id'] ?? 0,
+      id: orderData['id'] ?? 0,
+      userId: orderData['user_id'] ?? 0,
       items:
           (json['items'] as List<dynamic>?)
               ?.map((item) => OrderItem.fromJson(item))
               .toList() ??
           [],
-      shippingAddress: ShippingAddress.fromJson(json['shipping_address'] ?? {}),
-      subtotal: (json['subtotal'] ?? 0.0).toDouble(),
-      shippingFee: (json['shipping_fee'] ?? 0.0).toDouble(),
-      total: (json['total'] ?? 0.0).toDouble(),
-      status: json['status'] ?? 'pending',
-      createdAt: DateTime.parse(
-        json['created_at'] ?? DateTime.now().toIso8601String(),
+      shippingAddress: ShippingAddress(
+        id: orderData['shipping_address_id'],
+        fullName: orderData['shipping_name'] ?? '',
+        phone: orderData['phone'] ?? '',
+        addressLine1: orderData['address'] ?? '',
+        addressLine2: orderData['barangay'],
+        city: orderData['municipality'] ?? '',
+        state: orderData['province'] ?? '',
+        postalCode: '6333',
+        country: 'Philippines',
+        isDefault: false,
       ),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+      subtotal:
+          double.tryParse(orderData['subtotal']?.toString() ?? '0.0') ?? 0.0,
+      shippingFee:
+          double.tryParse(orderData['shipping_fee']?.toString() ?? '0.0') ??
+          0.0,
+      total: double.tryParse(orderData['total']?.toString() ?? '0.0') ?? 0.0,
+      status: orderData['status'] ?? 'pending',
+      createdAt: DateTime.parse(
+        orderData['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: orderData['updated_at'] != null
+          ? DateTime.parse(orderData['updated_at'])
           : null,
     );
   }
