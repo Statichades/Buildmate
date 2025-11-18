@@ -62,7 +62,6 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    // Handle nested response structure
     final orderData = json['order'] ?? json;
 
     return Order(

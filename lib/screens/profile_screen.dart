@@ -155,9 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
       }
-    } catch (e) {
-      // Handle upload error (optional)
-    }
+    } catch (e) {}
   }
 
   @override
@@ -166,7 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Header
             Container(
               width: double.infinity,
               decoration: BoxDecoration(

@@ -322,7 +322,6 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   @override
   void initState() {
     super.initState();
-    // Set default values for new addresses
     _selectedProvince = 'Bohol';
     _selectedMunicipality = 'Buenavista';
     if (widget.address != null) {
@@ -331,8 +330,7 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       _addressLine1Controller.text = widget.address!.addressLine1;
       _selectedProvince = widget.address!.state;
       _selectedMunicipality = widget.address!.city;
-      _selectedBarangay =
-          widget.address!.addressLine2; // Using addressLine2 for barangay
+      _selectedBarangay = widget.address!.addressLine2;
       _isDefault = widget.address!.isDefault;
     }
     _loadLocations();
@@ -353,7 +351,6 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
             ],
           },
         ];
-        // Always set province and municipality to Bohol and Buenavista
         _selectedProvince = 'Bohol';
         _selectedMunicipality = 'Buenavista';
         _barangays = List<String>.from(data['barangays'] ?? []);
@@ -376,7 +373,6 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Additional validation for required fields
     if (_selectedProvince == null ||
         _selectedProvince!.isEmpty ||
         _selectedMunicipality == null ||
@@ -407,10 +403,10 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       fullName: _fullNameController.text,
       phone: _phoneController.text,
       addressLine1: _addressLine1Controller.text,
-      addressLine2: _selectedBarangay, // Using addressLine2 for barangay
+      addressLine2: _selectedBarangay,
       city: _selectedMunicipality ?? '',
       state: _selectedProvince ?? '',
-      postalCode: '6304', // Default postal code for Buenavista, Bohol
+      postalCode: '6304',
       country: 'Philippines',
       isDefault: _isDefault,
     );

@@ -72,7 +72,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       return;
     }
 
-    
     bool alreadyInCart = await _isItemInCart(userId, widget.product.id);
     if (alreadyInCart) {
       showModernToast(message: 'This item is already in your cart');
@@ -93,7 +92,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
       if (response.statusCode == 201) {
         showModernToast(message: 'Item added to cart!');
-        
+
         CartScreen.refreshCart();
         if (mounted) {
           Navigator.pop(context);
@@ -154,9 +153,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
             ),
           ),
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.3), 
-            ),
+            child: Container(color: Colors.black.withOpacity(0.3)),
           ),
           Positioned.fill(
             child: Container(
@@ -178,7 +175,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           SafeArea(
             child: Column(
               children: [
-                
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -227,7 +223,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -362,7 +357,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ],
                       ),
                       const SizedBox(height: 20),
-                      
+
                       if (widget.product.description != null) ...[
                         _buildExpandableSection(
                           title: "Description",
@@ -375,7 +370,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
+
                       if (widget.product.specifications != null &&
                           widget.product.specifications!.isNotEmpty) ...[
                         _buildExpandableSection(
@@ -391,7 +386,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ),
                         const SizedBox(height: 20),
                       ],
-                      
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -455,7 +450,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                         ],
                       ),
                       const SizedBox(height: 32),
-                      
+
                       Row(
                         children: [
                           Expanded(
@@ -485,7 +480,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   return;
                                 }
 
-                                
                                 final cartItem = CartItem(
                                   id: 0,
                                   productId: widget.product.id,
@@ -496,7 +490,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                   isSelected: true,
                                 );
 
-                                
                                 if (mounted) {
                                   Navigator.push(
                                     context,

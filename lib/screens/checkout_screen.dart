@@ -81,8 +81,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         (sum, item) => sum + (double.parse(item.price) * item.quantity),
       );
 
-  double get _shippingFee =>
-      _subtotal > 500 ? 0 : 50; // Free shipping over ₱500
+  double get _shippingFee => _subtotal > 500 ? 0 : 50;
   double get _total => _subtotal + _shippingFee;
 
   Future<void> _placeOrder() async {
@@ -138,7 +137,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         final orderResponse = json.decode(response.body);
         final orderId = orderResponse['id'];
 
-        // Fetch the full order details
         final fullOrderResponse = await http.get(
           Uri.parse('$baseUrl/orders/$orderId'),
         );
@@ -146,7 +144,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           final fullOrderData = json.decode(fullOrderResponse.body);
           final order = Order.fromJson(fullOrderData);
 
-          // Clear selected cart items
           await _clearCartItems();
 
           if (mounted) {
@@ -203,9 +200,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     for (var item in selectedItems) {
       try {
         await http.delete(Uri.parse('$baseUrl/cart/$userId/${item.productId}'));
-      } catch (e) {
-        // Continue with other items even if one fails
-      }
+      } catch (e) {}
     }
   }
 

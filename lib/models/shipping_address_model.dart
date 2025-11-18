@@ -32,7 +32,7 @@ class ShippingAddress {
       addressLine2: json['barangay'],
       city: json['municipality'] ?? '',
       state: json['province'] ?? '',
-      postalCode: '6333', // Default postal code for Buenavista, Bohol
+      postalCode: '6333',
       country: 'Philippines',
       isDefault: (json['is_default'] == 1) || (json['is_default'] == true),
     );

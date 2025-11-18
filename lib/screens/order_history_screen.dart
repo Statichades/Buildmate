@@ -49,7 +49,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           final List<dynamic> data = json.decode(response.body);
           final orders = data.map((order) => Order.fromJson(order)).toList();
 
-          // Fetch items for each order
           for (var order in orders) {
             try {
               final orderResponse = await ApiService().get(
@@ -455,7 +454,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Order cancelled successfully')),
           );
-          _fetchOrders(); // Refresh the list
+          _fetchOrders();
         }
       } else {
         debugPrint(

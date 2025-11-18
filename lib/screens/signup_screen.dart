@@ -62,7 +62,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => isSigningUp = true);
 
-    
     try {
       final authService = AuthService();
       final result = await authService.register(username, email, password);
@@ -77,7 +76,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         passwordController.clear();
         confirmPasswordController.clear();
 
-        
         await authService.sendVerificationEmail(email);
 
         if (mounted) {

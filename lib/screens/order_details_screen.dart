@@ -536,7 +536,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Order cancelled successfully')),
           );
-          Navigator.pop(context); // Go back to previous screen
+          Navigator.pop(context);
         }
       } else {
         debugPrint(
