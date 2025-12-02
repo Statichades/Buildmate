@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/order_model.dart';
 import 'order_tracking_screen.dart';
+import 'dashboard_screen.dart';
 
 const String baseUrl = 'https://buildmate-db.onrender.com/api';
 
@@ -536,7 +537,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Order cancelled successfully')),
           );
-          Navigator.pop(context);
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            (route) => false,
+          );
         }
       } else {
         debugPrint(
