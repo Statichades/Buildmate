@@ -30,15 +30,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Future<void> _fetchProducts() async {
     try {
-      final response = await ApiService().get('/products?category=${widget.categoryName}');
+      final response = await ApiService().get('/products');
       if (response.statusCode == 200) {
         final allProducts = (json.decode(response.body) as List)
             .map((p) => Product.fromJson(p))
             .toList();
 
+        // Filter products by category name
+        final filteredProducts = allProducts
+            .where((product) => product.categoryName == widget.categoryName)
+            .toList();
+
         if (mounted) {
           setState(() {
-            _products = allProducts;
+            _products = filteredProducts;
             _isLoading = false;
           });
         }
@@ -124,12 +129,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
           price: product.price.toString(),
           stock: product.stock,
           categoryName: product.categoryName,
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-              final userId = prefs.getInt('user_id');
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+            final userId = prefs.getInt('user_id');
 
-              if (!isLoggedIn || userId == null) {
+            if (!isLoggedIn || userId == null) {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(

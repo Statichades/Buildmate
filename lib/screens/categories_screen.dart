@@ -74,19 +74,17 @@ class CategoriesScreenState extends State<CategoriesScreen> {
 
   IconData _getIconForCategory(String name) {
     switch (name.toLowerCase()) {
-      case 'masonry':
-        return Icons.construction;
-      case 'cabinets':
-        return Icons.kitchen;
-      case 'door & jambs':
-        return Icons.door_front_door;
-      case 'steel bars':
-        return Icons.precision_manufacturing;
-      case 'cement':
-        return Icons.grain;
       case 'paints':
         return Icons.format_paint;
-      case 'electrical':
+      case 'building materials':
+        return Icons.business;
+      case 'outdoor products':
+        return Icons.grass;
+      case 'kitchen':
+        return Icons.kitchen;
+      case 'welding':
+        return Icons.handyman;
+      case 'electrical utilities':
         return Icons.electrical_services;
       default:
         return Icons.category;
